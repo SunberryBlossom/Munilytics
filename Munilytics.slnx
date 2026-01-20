@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="frontend/frontend.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="Munilytics.AppHost/Munilytics.AppHost.csproj" />
+  <Project Path="Munilytics.Server/Munilytics.Server.csproj" />
+</Solution>
