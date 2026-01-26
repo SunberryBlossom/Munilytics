@@ -6,7 +6,11 @@ var postgres = builder.AddPostgres("hydra", password: postgresPassword)
     .WithImageRegistry("ghcr.io")
     .WithImage("hydradatabase/hydra", "latest")
     .WithDataVolume("hydra-data")
-    .WithPgAdmin()
+    .WithPgAdmin(p => 
+    {
+        p.WithLifetime(ContainerLifetime.Persistent);
+        p.WithVolume("pgadmin", "/var/lib/pgadmin");
+    })
     .WithLifetime(ContainerLifetime.Persistent)
     .AddDatabase("MunilyticsDb");
 
