@@ -1,3 +1,5 @@
+using Aspire.Hosting;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Postgres setup
@@ -13,6 +15,11 @@ var postgres = builder.AddPostgres("hydra", password: postgresPassword)
     })
     .WithLifetime(ContainerLifetime.Persistent)
     .AddDatabase("MunilyticsDb");
+
+var redis = builder.AddRedis("redis")
+    .WithLifetime(ContainerLifetime.Persistent);
+
+
 
 var server = builder.AddProject<Projects.Munilytics_Server>("server")
     .WithHttpHealthCheck("/health")
