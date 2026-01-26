@@ -1,5 +1,12 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
+// Postgres setup
+var postgresPassword = builder.AddParameter("postgres-password", "postgres");
+var postgres = builder.AddPostgres("hydra", password: postgresPassword)
+    .WithImage("hydradatabase/hydra", "latest")
+    .WithDataVolume("hydra-data")
+    .AddDatabase("MunilyticsDb");
+
 var server = builder.AddProject<Projects.Munilytics_Server>("server")
     .WithHttpHealthCheck("/health")
     .WithExternalHttpEndpoints();
