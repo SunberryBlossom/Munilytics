@@ -19,9 +19,9 @@ var postgres = builder.AddPostgres("hydra", password: postgresPassword)
 var redis = builder.AddRedis("redis")
     .WithLifetime(ContainerLifetime.Persistent);
 
-
-
 var server = builder.AddProject<Projects.Munilytics_Server>("server")
+    .WithReference(postgres)
+    .WithReference(redis)
     .WithHttpHealthCheck("/health")
     .WithExternalHttpEndpoints();
 
