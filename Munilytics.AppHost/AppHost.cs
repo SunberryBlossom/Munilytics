@@ -8,8 +8,9 @@ var postgresPassword = builder.AddParameter("postgres-password", "postgres");
 var postgres = builder.AddPostgres("hydra", password: postgresPassword)
     .WithImageRegistry("ghcr.io")
     .WithImage("hydradatabase/hydra", "latest")
+    .WithHostPort(port: 5433)
     .WithDataVolume("hydra-data")
-    .WithPgAdmin(p => 
+    .WithPgAdmin(p =>
     {
         p.WithLifetime(ContainerLifetime.Persistent);
         p.WithVolume("pgadmin", "/var/lib/pgadmin");
