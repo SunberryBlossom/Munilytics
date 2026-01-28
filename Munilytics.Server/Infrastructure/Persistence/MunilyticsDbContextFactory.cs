@@ -1,6 +1,12 @@
-﻿namespace Munilytics.Server.Infrastructure.Persistence
+﻿using Microsoft.EntityFrameworkCore.Design;
+
+namespace Munilytics.Server.Infrastructure.Persistence
 {
-    public class MunilyticsDbContextFactory
+    public sealed class MunilyticsDbContextFactory : IDesignTimeDbContextFactory<MunilyticsDbContext>
     {
+        public MunilyticsDbContext CreateDbContext(string[] args)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
