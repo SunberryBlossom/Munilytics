@@ -8,6 +8,8 @@ namespace Munilytics.Server.Domain.Entities
         [Key]
         public GenderCode Code { get; set; }
         public string GenderName { get; set; } = string.Empty;
-        public int SortOrder { get; set; } 
+        public int SortOrder { get; set; }
+
+        public FactKpiMeasurement FactKpiMeasurement { get; set; } = null!;
     }
 }
