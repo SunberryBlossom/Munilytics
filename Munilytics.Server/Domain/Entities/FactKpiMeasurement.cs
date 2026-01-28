@@ -2,6 +2,8 @@
 {
     public class FactKpiMeasurement
     {
+        public int Id { get; set; }
+
         //Foreign Keys to all Dimension Tables
         public int DimMunicipality { get; set; }
         public int DimKPI { get; set; }
