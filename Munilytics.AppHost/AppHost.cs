@@ -25,6 +25,7 @@ var cube = builder.AddContainer("cube", "cubejs/cube")
     .WithHttpEndpoint(port: 4000, targetPort: 4000, name: "http")
     .WithEnvironment("CUBEJS_DEV_MODE", "true")
     .WithEnvironment("CUBEJS_WEB_SOCKETS", "true")
+    // Needs to be changed for prod
     .WithEnvironment("CUBEJS_API_SECRET", "mysupersecret")
     // Postgres Integration
     .WithEnvironment("CUBEJS_DB_TYPE", "postgres")
@@ -33,8 +34,9 @@ var cube = builder.AddContainer("cube", "cubejs/cube")
     .WithEnvironment("CUBEJS_DB_NAME", "MunilyticsDb")
     .WithEnvironment("CUBEJS_DB_USER", "postgres")
     .WithEnvironment("CUBEJS_DB_PASS", postgresPassword)
-    // Redis Integration
+    // Uses memory for queues as per new standard
     .WithEnvironment("CUBEJS_CACHE_AND_QUEUE_DRIVER", "memory")
+    // Redis url for caching data results
     .WithEnvironment("CUBEJS_REDIS_URL", ReferenceExpression.Create($"redis://{redis.Resource.Name}:6379"))
     // Cubejs folder
     .WithBindMount("../cube", "/cube/conf")
