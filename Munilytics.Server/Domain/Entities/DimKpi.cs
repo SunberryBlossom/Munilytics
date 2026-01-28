@@ -2,5 +2,16 @@
 {
     public class DimKpi
     {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public bool IsDividedByGender { get; set; }
+        public string MunicipalityType { get; set; } = string.Empty;
+        public string auspice { get; set; } = string.Empty;
+        public string OperatingArea { get; set; } = string.Empty;
+        public string perspective { get; set; } = string.Empty;
+        public string Unit { get; set; } = string.Empty;
+
+        public FactKpiMeasurement FactKpiMeasurement { get; set; } = null!;       
     }
 }
