@@ -5,11 +5,10 @@ namespace Munilytics.Server.Domain.Entities
 {
     public class DimGender
     {
-        [Key]
         public GenderCode Code { get; set; }
         public string GenderName { get; set; } = string.Empty;
         public int SortOrder { get; set; }
 
-        public FactKpiMeasurement FactKpiMeasurement { get; set; } = null!;
+        public ICollection<FactKpiMeasurement> FactKpiMeasurements { get; set; } = new List<FactKpiMeasurement>();
     }
 }
