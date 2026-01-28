@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore.Design;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Design;
+using System;
 
 namespace Munilytics.Server.Infrastructure.Persistence
 {
@@ -6,7 +8,13 @@ namespace Munilytics.Server.Infrastructure.Persistence
     {
         public MunilyticsDbContext CreateDbContext(string[] args)
         {
-            throw new NotImplementedException();
+            const string connectionString = "Host=localhost;Port=5432;Database=MunilyticsDb;Username=postgres;Password=postgres";
+
+            var options = new DbContextOptionsBuilder<MunilyticsDbContext>()
+                .UseNpgsql(connectionString)
+                .Options;
+
+            return new MunilyticsDbContext(options);
         }
     }
 }
