@@ -1,3 +1,6 @@
+using Munilytics.Server.Infrastructure.Kolada;
+using Munilytics.Server.Interfaces;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add service defaults & Aspire client integrations.
@@ -8,6 +11,9 @@ builder.Services.AddProblemDetails();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+// Registers HttpClient service with DI for our KoladaService
+builder.Services.AddHttpClient<IKoladaService, KoladaService>();
 
 var app = builder.Build();
 
