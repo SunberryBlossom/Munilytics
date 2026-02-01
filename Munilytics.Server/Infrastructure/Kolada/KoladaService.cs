@@ -1,4 +1,5 @@
-﻿using Munilytics.Server.Interfaces;
+﻿using Munilytics.Server.Domain.Entities;
+using Munilytics.Server.Interfaces;
 using System.Text.Json;
 
 namespace Munilytics.Server.Infrastructure.Kolada
@@ -6,7 +7,7 @@ namespace Munilytics.Server.Infrastructure.Kolada
     public class KoladaService : IKoladaService
     {
         private readonly HttpClient _httpClient;
-        private const string BaseUrl = "https://api.kolada.se/v2/";
+        private const string BaseUrl = "https://api.kolada.se/v3/";
 
         public KoladaService(HttpClient httpClient)
         {
@@ -19,10 +20,18 @@ namespace Munilytics.Server.Infrastructure.Kolada
         /// <typeparam name="T">The type into which the JSON response is deserialized.</typeparam>
         /// <param name="endpoint">The relative URL of the endpoint to retrieve data from. This value should not include the base URL.</param>
         /// <returns>An instance of type T with the deserialized data from the endpoint.</returns>
-        public async Task<T> GetAsync<T>(string endpoint, CancellationToken ct)
+        public async Task<T?> GetAsync<T>(string endpoint, CancellationToken ct)
         {
-            var json = await _httpClient.GetStringAsync(BaseUrl + endpoint, ct);
-            return JsonSerializer.Deserialize<T>(json)!;
+            using var response = await _httpClient.GetAsync(BaseUrl + endpoint, HttpCompletionOption.ResponseHeadersRead, ct);
+            response.EnsureSuccessStatusCode(); //Throws HttpRequestException if Statuscode is NOT 200-299.
+
+            using var contentStream = await response.Content.ReadAsStreamAsync(ct);
+            var options = new JsonSerializerOptions 
+            { 
+                PropertyNameCaseInsensitive = true 
+            };
+
+            return await JsonSerializer.DeserializeAsync<T>(contentStream, options, ct);
         }
     }
 }
