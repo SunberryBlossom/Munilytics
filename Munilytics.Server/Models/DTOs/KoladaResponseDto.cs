@@ -6,7 +6,7 @@ namespace Munilytics.Server.Models.DTOs
     /// Generic DTO that can be used for almost all Kolada requests, since almost all data is
     /// wrapped in "value" objects.
     /// </summary>
-    public record KoladaResponse<T>(
+    public record KoladaResponseDto<T>(
         [property: JsonPropertyName("values")] List<T> Values
     );
 }
