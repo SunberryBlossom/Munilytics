@@ -53,12 +53,22 @@ namespace Munilytics.Server.Infrastructure.Kolada
             }
         }
 
+        /// <summary>
+        /// Asynchronously retrieves a list of municipalities from the Kolada API.
+        /// </summary>
+        /// <returns>A list of KoladaMunicipalityDto objects representing the municipalities. Returns an empty list if no
+        /// municipalities are found.</returns>
         public async Task<List<KoladaMunicipalityDto>> GetMunicipalitiesAsync<T>(CancellationToken ct = default)
         {
             var response = await GetAsync<KoladaResponseDto<KoladaMunicipalityDto>>("municipality", ct);
             return response?.Values ?? new List<KoladaMunicipalityDto>();
         }
 
+        /// <summary>
+        /// Asynchronously retrieves a list of KPIs from the Kolada API.
+        /// </summary>
+        /// <returns>A list of KoladaKpiDto objects representing the KPIs. Returns an empty list if no
+        /// KPIs are found.</returns>
         public async Task<List<KoladaKpiDto>> GetKpisAsync<T>(CancellationToken ct = default)
         {
             var response = await GetAsync<KoladaResponseDto<KoladaKpiDto>>("kpi", ct);
