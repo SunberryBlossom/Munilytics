@@ -22,16 +22,34 @@ namespace Munilytics.Server.Infrastructure.Kolada
         /// <returns>An instance of type T with the deserialized data from the endpoint.</returns>
         public async Task<T?> GetAsync<T>(string endpoint, CancellationToken ct)
         {
-            using var response = await _httpClient.GetAsync(BaseUrl + endpoint, HttpCompletionOption.ResponseHeadersRead, ct);
-            response.EnsureSuccessStatusCode(); //Throws HttpRequestException if Statuscode is NOT 200-299.
+            try
+            {
+                using var response = await _httpClient.GetAsync(BaseUrl + endpoint, HttpCompletionOption.ResponseHeadersRead, ct);
+                response.EnsureSuccessStatusCode(); //Throws HttpRequestException if Statuscode is NOT 200-299.
 
-            using var contentStream = await response.Content.ReadAsStreamAsync(ct);
-            var options = new JsonSerializerOptions 
-            { 
-                PropertyNameCaseInsensitive = true 
-            };
+                using var contentStream = await response.Content.ReadAsStreamAsync(ct);
+                var options = new JsonSerializerOptions 
+                { 
+                    PropertyNameCaseInsensitive = true 
+                };
 
-            return await JsonSerializer.DeserializeAsync<T>(contentStream, options, ct);
+                return await JsonSerializer.DeserializeAsync<T>(contentStream, options, ct);
+            }
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"Netword error while contacting Kolada: {ex.Message}");
+                throw;
+            }
+            catch (JsonException ex)
+            {
+                Console.WriteLine($"JSON-error: Could not understand response: {ex.Message}");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An unexpected error occured: {ex.Message}");
+                throw;
+            }
         }
     }
 }
