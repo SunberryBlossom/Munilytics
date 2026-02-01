@@ -58,5 +58,11 @@ namespace Munilytics.Server.Infrastructure.Kolada
             var response = await GetAsync<KoladaResponseDto<KoladaMunicipalityDto>>("municipality", ct);
             return response?.Values ?? new List<KoladaMunicipalityDto>();
         }
+
+        public async Task<List<KoladaKpiDto>> GetKpisAsync<T>(CancellationToken ct = default)
+        {
+            var response = await GetAsync<KoladaResponseDto<KoladaKpiDto>>("kpi", ct);
+            return response?.Values ?? new List<KoladaKpiDto>();
+        }
     }
 }
