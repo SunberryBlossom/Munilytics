@@ -1,5 +1,6 @@
 ﻿using Munilytics.Server.Domain.Entities;
 using Munilytics.Server.Interfaces;
+using Munilytics.Server.Models.DTOs;
 using System.Text.Json;
 
 namespace Munilytics.Server.Infrastructure.Kolada
@@ -50,6 +51,12 @@ namespace Munilytics.Server.Infrastructure.Kolada
                 Console.WriteLine($"An unexpected error occured: {ex.Message}");
                 throw;
             }
+        }
+
+        public async Task<List<KoladaMunicipalityDto>> GetMunicipalitiesAsync<T>(CancellationToken ct = default)
+        {
+            var response = await GetAsync<KoladaResponseDto<KoladaMunicipalityDto>>("municipality", ct);
+            return response?.Values ?? new List<KoladaMunicipalityDto>();
         }
     }
 }
