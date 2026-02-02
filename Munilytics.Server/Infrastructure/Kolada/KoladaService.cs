@@ -38,18 +38,15 @@ namespace Munilytics.Server.Infrastructure.Kolada
             }
             catch (HttpRequestException ex)
             {
-                Console.WriteLine($"Netword error while contacting Kolada: {ex.Message}");
-                throw;
+                throw new HttpRequestException("Netword error while contacting Kolada. ", ex);
             }
             catch (JsonException ex)
             {
-                Console.WriteLine($"JSON-error: Could not understand response: {ex.Message}");
-                throw;
+                throw new JsonException("JSON-error: Could not understand response. ", ex);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"An unexpected error occured: {ex.Message}");
-                throw;
+                throw new InvalidOperationException("An unexpected error occured. ", ex);
             }
         }
 
