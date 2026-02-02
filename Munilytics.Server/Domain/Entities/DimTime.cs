@@ -9,6 +9,6 @@
         public bool IsElectionYear { get; set; } 
         public int RelativeYear { get; set; } //Timespan
 
-        public FactKpiMeasurement FactKpiMeasurement { get; set; } = null!;
+        public ICollection<FactKpiMeasurement> FactKpiMeasurements { get; set; } = new List<FactKpiMeasurement>();
     }
 }

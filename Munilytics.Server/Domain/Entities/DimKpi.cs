@@ -12,6 +12,6 @@
         public string Perspective { get; set; } = string.Empty;
         public string Unit { get; set; } = string.Empty;
 
-        public FactKpiMeasurement FactKpiMeasurement { get; set; } = null!;       
+        public ICollection<FactKpiMeasurement> FactKpiMeasurements { get; set; } = new List<FactKpiMeasurement>();       
     }
 }
