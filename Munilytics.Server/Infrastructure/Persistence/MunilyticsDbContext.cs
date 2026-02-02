@@ -20,7 +20,7 @@ namespace Munilytics.Server.Infrastructure.Persistence
     {
             base.OnModelCreating(modelBuilder);
 
-            // TODO: implement Fluent API
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(MunilyticsDbContext).Assembly);
         }
     }
 }
