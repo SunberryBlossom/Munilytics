@@ -36,17 +36,9 @@ namespace Munilytics.Server.Infrastructure.Kolada
 
                 return await JsonSerializer.DeserializeAsync<T>(contentStream, options, ct);
             }
-            catch (HttpRequestException ex)
+            catch (Exception)
             {
-                throw new HttpRequestException("Netword error while contacting Kolada. ", ex);
-            }
-            catch (JsonException ex)
-            {
-                throw new JsonException("JSON-error: Could not understand response. ", ex);
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException("An unexpected error occured. ", ex);
+                throw;
             }
         }
 
