@@ -20,6 +20,36 @@ namespace Munilytics.Server.Infrastructure.Persistence.Configurations
                 .HasMany(dt => dt.FactKpiMeasurements)
                 .WithOne(fkm => fkm.DimTime)
                 .HasForeignKey(fkm => fkm.DimTimeId);
+
+            builder.HasData(GenerateTimeData());
+
+
+        }
+
+        private IEnumerable<DimTime> GenerateTimeData()
+        {
+            var times = new List<DimTime>();
+            int idCounter = 0;
+
+            for (int i = 1994; i <= DateTime.Now.Year; i++)
+            {
+                idCounter++;
+
+                int offset = (i - 1994) % 4;
+                int mandateStart = i - offset;
+
+                times.Add(new DimTime
+                {
+                    Id = idCounter,
+                    Year = i,
+                    Decade = (i / 10) * 10,
+                    IsElectionYear = (i - 1994) % 4 == 0,
+                    RelativeYear = i - DateTime.Now.Year,
+                    MandatePeriod = $"{mandateStart}-{mandateStart + 3}"
+                });
+            }
+
+            return times;
         }
     }
 }
