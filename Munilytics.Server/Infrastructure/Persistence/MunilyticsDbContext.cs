@@ -19,6 +19,8 @@ namespace Munilytics.Server.Infrastructure.Persistence
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // TODO: implement Fluent API
         }
     }
 }
