@@ -9,6 +9,8 @@ using Munilytics.Server.Infrastructure.Persistence;
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
 using Wolverine.Postgresql;
+using Munilytics.Server.Infrastructure.Kolada;
+using Munilytics.Server.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,6 +65,8 @@ builder.Services.SwaggerDocument(o =>
 
     };
 });
+// Registers HttpClient service with DI for our KoladaService
+builder.Services.AddHttpClient<IKoladaService, KoladaService>();
 
 var app = builder.Build();
 

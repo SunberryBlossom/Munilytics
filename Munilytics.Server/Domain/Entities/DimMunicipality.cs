@@ -6,9 +6,9 @@
         public string Title { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
         public string County { get; set; } = string.Empty;
-        public string SKRGroupCode { get; set; } = string.Empty;
-        public string SKRGroupName { get; set; } = string.Empty;
+        public string SkrGroupCode { get; set; } = string.Empty;
+        public string SkrGroupName { get; set; } = string.Empty;
 
-        public FactKpiMeasurement FactKpiMeasurement { get; set; } = null!;
+        public ICollection<FactKpiMeasurement> FactKpiMeasurements { get; set; } = new List<FactKpiMeasurement>();
     }
 }
