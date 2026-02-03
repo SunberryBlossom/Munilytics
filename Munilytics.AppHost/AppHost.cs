@@ -46,7 +46,8 @@ var server = builder.AddProject<Projects.Munilytics_Server>("server")
     .WithReference(postgres)
     .WithReference(redis)
     .WithHttpHealthCheck("/health")
-    .WithExternalHttpEndpoints();
+    .WithExternalHttpEndpoints()
+    .WaitFor(postgres);
 
 var webfrontend = builder.AddViteApp("webfrontend", "../frontend")
     .WithReference(server)
