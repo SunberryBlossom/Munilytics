@@ -8,9 +8,5 @@ using Wolverine;
 
 namespace Munilytics.Server.Features.Admin.SyncKpis.DTOs
 {
-    public record SyncKpiResponse
-    {
-        public string Message {get; set;} = string.Empty;
-        public bool Success;
-    }
+    public record SyncKpiResponse(string Message, bool Success);
 }
