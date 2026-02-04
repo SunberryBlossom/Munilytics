@@ -84,8 +84,8 @@ namespace Munilytics.Server.Features.Admin.SyncKpis
                         Unit = "N/A"
                     };
 
-                        db.Dim_KPIs.Add(newEntity);
-                    }
+                    db.Dim_KPIs.Add(newEntity);
+                }
             }
 
             return new SyncKpiResponse("KPI successfully synced", true );
