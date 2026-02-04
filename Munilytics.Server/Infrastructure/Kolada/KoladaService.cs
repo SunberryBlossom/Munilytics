@@ -29,9 +29,9 @@ namespace Munilytics.Server.Infrastructure.Kolada
                 response.EnsureSuccessStatusCode(); //Throws HttpRequestException if Statuscode is NOT 200-299.
 
                 using var contentStream = await response.Content.ReadAsStreamAsync(ct);
-                var options = new JsonSerializerOptions 
-                { 
-                    PropertyNameCaseInsensitive = true 
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
                 };
 
                 return await JsonSerializer.DeserializeAsync<T>(contentStream, options, ct);
