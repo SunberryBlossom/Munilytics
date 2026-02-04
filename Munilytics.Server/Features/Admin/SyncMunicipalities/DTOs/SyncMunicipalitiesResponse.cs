@@ -5,5 +5,5 @@ using System.Threading.Tasks;
 
 namespace Munilytics.Server.Features.Admin.SyncMunicipalities.DTOs
 {
-    public record SyncMunicipalitiesResponse(string message, bool success);
+    public record SyncMunicipalitiesResponse(string Message, bool Success);
 }
