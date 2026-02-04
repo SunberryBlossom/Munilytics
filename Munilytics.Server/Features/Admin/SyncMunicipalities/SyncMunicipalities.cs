@@ -54,7 +54,7 @@ namespace Munilytics.Server.Features.Admin.SyncMunicipalities
 
             if (municipalities == null || municipalities.Count == 0)
             {
-                throw new ApplicationException("No municipalties could be fetched from the Kolada API.");
+                throw new ApplicationException("No municipalities could be fetched from the Kolada API.");
             }
 
             var existingMunicipalities = await db.Dim_Municipalities.ToDictionaryAsync(m => m.Title, m => m, ct);
