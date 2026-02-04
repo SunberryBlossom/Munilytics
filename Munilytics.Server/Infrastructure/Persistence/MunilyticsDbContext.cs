@@ -1,9 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Munilytics.Server.Domain.Entities;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 
 namespace Munilytics.Server.Infrastructure.Persistence
 {
-    public class MunilyticsDbContext : DbContext
+    public class MunilyticsDbContext : IdentityDbContext<User>
     {
         public DbSet<FactKpiMeasurement> Fact_KpiMeasurements { get; set; }
         public DbSet<DimMunicipality> Dim_Municipalities { get; set; }

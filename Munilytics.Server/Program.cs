@@ -1,3 +1,14 @@
+using FastEndpoints;
+using FastEndpoints.Security;
+using FastEndpoints.Swagger;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Munilytics.Server.Domain.Entities;
+using Munilytics.Server.Infrastructure.Persistence;
+using Wolverine;
+using Wolverine.EntityFrameworkCore;
+using Wolverine.Postgresql;
 using Munilytics.Server.Infrastructure.Kolada;
 using Munilytics.Server.Interfaces;
 
@@ -12,6 +23,48 @@ builder.Services.AddProblemDetails();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+// Get connectionstring from Aspire
+var connectionString = builder.Configuration.GetConnectionString("MunilyticsDb");
+
+// Wolverine
+builder.Host.UseWolverine(opt =>
+{
+    opt.PersistMessagesWithPostgresql(connectionString!);
+    opt.UseEntityFrameworkCoreTransactions();
+    opt.Policies.UseDurableInboxOnAllListeners();
+    opt.Policies.UseDurableOutboxOnAllSendingEndpoints();
+});
+
+// Postgres setup with wolverine
+builder.Services.AddDbContextWithWolverineIntegration<MunilyticsDbContext>(o => o.UseNpgsql(connectionString));
+
+// Auth
+builder.Services.AddIdentity<User, IdentityRole>()
+    .AddEntityFrameworkStores<MunilyticsDbContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+});
+
+builder.Services.AddAuthenticationJwtBearer(s => s.SigningKey = builder.Configuration["Jwt:Key"]!);
+
+builder.Services.AddAuthorization();
+
+// Fastendpoints
+builder.Services.AddFastEndpoints();
+builder.Services.SwaggerDocument(o =>
+{
+    o.DocumentSettings = s =>
+    {
+        s.Title = "ChasRooms API";
+        s.Version = "v1";
+        s.Description = "APIs for ChasRooms";
+
+    };
+});
 // Registers HttpClient service with DI for our KoladaService
 builder.Services.AddHttpClient<IKoladaService, KoladaService>();
 
@@ -28,5 +81,10 @@ if (app.Environment.IsDevelopment())
 app.MapDefaultEndpoints();
 
 app.UseFileServer();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.UseFastEndpoints();
 
 app.Run();
