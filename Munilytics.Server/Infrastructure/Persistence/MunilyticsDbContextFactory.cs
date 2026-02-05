@@ -8,7 +8,7 @@ namespace Munilytics.Server.Infrastructure.Persistence
     {
         public MunilyticsDbContext CreateDbContext(string[] args)
         {
-            const string connectionString = "Host=localhost;Port=5433;Database=MunilyticsDb;Username=postgres;Password=postgres";
+            const string connectionString = "Host=localhost;Port=64415;Database=MunilyticsDb;Username=postgres;Password=postgres";
 
             var options = new DbContextOptionsBuilder<MunilyticsDbContext>()
                 .UseNpgsql(connectionString)
