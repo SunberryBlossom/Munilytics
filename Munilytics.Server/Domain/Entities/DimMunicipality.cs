@@ -3,6 +3,7 @@
     public class DimMunicipality
     {
         public int Id { get; set; }
+        public string KoladaId { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
         public string County { get; set; } = string.Empty;
