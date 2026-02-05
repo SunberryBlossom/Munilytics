@@ -37,8 +37,9 @@ namespace Munilytics.Server.Features.Admin.SyncKpis
     public static class SyncKpisHandler
     {
         [Transactional]
-        public static async Task<SyncKpiResponse> Handle(SyncKpiCommand cmd, MunilyticsDbContext db, IKoladaService koladaService, CancellationToken ct)
+        public static async Task Handle(SyncKpiCommand cmd, MunilyticsDbContext db, IKoladaService koladaService, ILogger<SyncKpis> logger, CancellationToken ct)
         {
+            logger.LogInformation("Started KPI Sync");
             var kpis = await koladaService.GetKpisAsync<KoladaKpiDto>(ct);
 
             if (kpis == null || kpis.Count == 0)
@@ -81,7 +82,7 @@ namespace Munilytics.Server.Features.Admin.SyncKpis
                     }
             }
 
-            return new SyncKpiResponse("KPI successfully synced", true );
+            logger.LogInformation("Finished background job for KPI sync");
         }
     }
 }

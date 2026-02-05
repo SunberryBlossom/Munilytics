@@ -45,6 +45,9 @@ builder.Host.UseWolverine(opt =>
         TimeSpan.FromSeconds(15)
         );
     opt.Services.AddSingularAgent<KoladaSyncAgent>();
+    opt.LocalQueue("sync-kpis")
+    .UseDurableInbox()
+    .Sequential();
 });
 
 // Postgres setup with wolverine
