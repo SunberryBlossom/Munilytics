@@ -10,7 +10,7 @@ using Wolverine.Attributes;
 
 namespace Munilytics.Server.Features.Admin.SyncKpis
 {
-    [LocalQueue("sync-kpis")]
+    [LocalQueue("sync-kolada")]
     public record SyncKpiCommand();
 
     public class SyncKpis : EndpointWithoutRequest<SyncKpiResponse>
@@ -29,7 +29,7 @@ namespace Munilytics.Server.Features.Admin.SyncKpis
 
         public override async Task HandleAsync(CancellationToken ct)
         {
-            var result = _bus.SendAsync(new SyncKpiCommand());
+            await _bus.SendAsync(new SyncKpiCommand());
             await Send.AcceptedAtAsync("Syncing KPI in the background", ct);
         }
     }

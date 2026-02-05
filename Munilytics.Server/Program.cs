@@ -44,7 +44,7 @@ builder.Host.UseWolverine(opt =>
         TimeSpan.FromSeconds(15)
         );
     opt.Services.AddSingularAgent<KoladaSyncAgent>();
-    opt.LocalQueue("sync-kpis")
+    opt.LocalQueue("sync-kolada")
     .UseDurableInbox()
     .Sequential();
 });
