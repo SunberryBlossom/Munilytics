@@ -1,4 +1,5 @@
 ﻿using Munilytics.Server.Domain.Entities;
+using Munilytics.Server.Infrastructure.Kolada.DTOs;
 using Munilytics.Server.Interfaces;
 using Munilytics.Server.Models.DTOs;
 using System.Text.Json;
@@ -62,6 +63,12 @@ namespace Munilytics.Server.Infrastructure.Kolada
         {
             var response = await GetAsync<KoladaResponseDto<KoladaKpiDto>>("kpi", ct);
             return response?.Values ?? new List<KoladaKpiDto>();
+        }
+
+        public async Task<List<KoladaFactDto>> GetFactAsync<T>(CancellationToken ct = default)
+        {
+            var response = await GetAsync<KoladaResponseDto<KoladaFactDto>>("/data/municipality/{municipality_id}/year/{year}", ct);
+            return response?.Values ?? new List<KoladaFactDto>();
         }
     }
 }
