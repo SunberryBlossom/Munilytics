@@ -25,7 +25,6 @@ builder.AddServiceDefaults();
 builder.Services.AddProblemDetails();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
 
 // Get connectionstring from Aspire
 var connectionString = builder.Configuration.GetConnectionString("MunilyticsDb");
@@ -87,11 +86,6 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
-
 app.MapDefaultEndpoints();
 
 app.UseFileServer();
@@ -100,5 +94,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.UseFastEndpoints();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwaggerGen();
+}
 
 await app.RunJasperFxCommands(args);
