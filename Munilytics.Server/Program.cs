@@ -37,7 +37,6 @@ builder.Host.UseWolverine(opt =>
     opt.UseEntityFrameworkCoreTransactions();
     opt.Policies.UseDurableInboxOnAllListeners();
     opt.Policies.UseDurableOutboxOnAllSendingEndpoints();
-    opt.Policies.AllLocalQueues(q => q.UseDurableInbox());
     opt.Policies.OnException<ApplicationException>()
         .RetryWithCooldown(
         TimeSpan.FromSeconds(5),
