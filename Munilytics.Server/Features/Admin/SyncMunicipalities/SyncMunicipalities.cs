@@ -67,6 +67,7 @@ namespace Munilytics.Server.Features.Admin.SyncMunicipalities
                     {
                         existingIdentity.Title = dto.Title;
                         existingIdentity.Type = dto.Type;
+                        existingIdentity.KoladaId = dto.Id;
                     }
                 }
                 else
@@ -74,7 +75,8 @@ namespace Munilytics.Server.Features.Admin.SyncMunicipalities
                     var newEntity = new DimMunicipality
                     {
                         Title = dto.Title,
-                        Type = dto.Type
+                        Type = dto.Type,
+                        KoladaId = dto.Id
                     };
 
                     db.Dim_Municipalities.Add(newEntity);
