@@ -10,6 +10,7 @@ using Wolverine.Attributes;
 
 namespace Munilytics.Server.Features.Admin.SyncKpis
 {
+    [LocalQueue("sync-kpis")]
     public record SyncKpiCommand();
 
     public class SyncKpis : EndpointWithoutRequest<SyncKpiResponse>
@@ -28,15 +29,8 @@ namespace Munilytics.Server.Features.Admin.SyncKpis
 
         public override async Task HandleAsync(CancellationToken ct)
         {
-            try
-            {
-            var result = await _bus.InvokeAsync<SyncKpiResponse>(new SyncKpiCommand(), ct);
-            await Send.OkAsync(result, ct);
-            }
-            catch (ApplicationException ex)
-            {
-                ThrowError(ex.Message);
-            }
+            var result = _bus.SendAsync(new SyncKpiCommand());
+            await Send.AcceptedAtAsync("Syncing KPI in the background", ct);
         }
     }
 
@@ -49,9 +43,8 @@ namespace Munilytics.Server.Features.Admin.SyncKpis
 
             if (kpis == null || kpis.Count == 0)
             {
-                throw new ApplicationException("For some reason the KoladaService returned 0 KPIs from the KOLADA database...");
+                throw new ApplicationException("KoladaService returned 0 KPIs.");
             }
-
             var existingKpis = await db.Dim_KPIs.ToDictionaryAsync(k => k.KpiCode, k => k, ct);
 
             foreach(var dto in kpis)

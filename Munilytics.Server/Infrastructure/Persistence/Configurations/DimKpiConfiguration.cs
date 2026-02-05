@@ -10,14 +10,14 @@ namespace Munilytics.Server.Infrastructure.Persistence.Configurations
         {
             builder.HasKey(dk => dk.Id);
 
-            builder.Property(dk => dk.Title).HasMaxLength(400).IsRequired();
-            builder.Property(dk => dk.Description).HasMaxLength(400).IsRequired();
+            builder.Property(dk => dk.Title).IsRequired();
+            builder.Property(dk => dk.Description).IsRequired();
             builder.Property(dk => dk.IsDividedByGender).IsRequired();
             builder.Property(dk => dk.MunicipalityType).IsRequired();
-            builder.Property(dk => dk.Auspice).HasMaxLength(400).IsRequired();
-            builder.Property(dk => dk.OperatingArea).HasMaxLength(400).IsRequired();
-            builder.Property(dk => dk.Perspective).HasMaxLength(400).IsRequired();
-            builder.Property(dk => dk.Unit).HasMaxLength(400).IsRequired();
+            builder.Property(dk => dk.Auspice);
+            builder.Property(dk => dk.OperatingArea).IsRequired();
+            builder.Property(dk => dk.Perspective).IsRequired();
+            builder.Property(dk => dk.Unit).IsRequired();
 
             builder
                 .HasMany(dk => dk.FactKpiMeasurements)
