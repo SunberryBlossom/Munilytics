@@ -10,6 +10,7 @@ using Wolverine.Attributes;
 
 namespace Munilytics.Server.Features.Admin.SyncKpis
 {
+    [LocalQueue("sync-kolada")]
     public record SyncKpiCommand();
 
     public class SyncKpis : EndpointWithoutRequest<SyncKpiResponse>
@@ -28,30 +29,23 @@ namespace Munilytics.Server.Features.Admin.SyncKpis
 
         public override async Task HandleAsync(CancellationToken ct)
         {
-            try
-            {
-            var result = await _bus.InvokeAsync<SyncKpiResponse>(new SyncKpiCommand(), ct);
-            await Send.OkAsync(result, ct);
-            }
-            catch (ApplicationException ex)
-            {
-                ThrowError(ex.Message);
-            }
+            await _bus.SendAsync(new SyncKpiCommand());
+            await Send.AcceptedAtAsync("Syncing KPI in the background", ct);
         }
     }
 
     public static class SyncKpisHandler
     {
         [Transactional]
-        public static async Task<SyncKpiResponse> Handle(SyncKpiCommand cmd, MunilyticsDbContext db, IKoladaService koladaService, CancellationToken ct)
+        public static async Task Handle(SyncKpiCommand cmd, MunilyticsDbContext db, IKoladaService koladaService, ILogger<SyncKpis> logger, CancellationToken ct)
         {
+            logger.LogInformation("Started KPI Sync");
             var kpis = await koladaService.GetKpisAsync<KoladaKpiDto>(ct);
 
             if (kpis == null || kpis.Count == 0)
             {
-                throw new ApplicationException("For some reason the KoladaService returned 0 KPIs from the KOLADA database...");
+                throw new ApplicationException("KoladaService returned 0 KPIs.");
             }
-
             var existingKpis = await db.Dim_KPIs.ToDictionaryAsync(k => k.KpiCode, k => k, ct);
 
             foreach(var dto in kpis)
@@ -88,7 +82,7 @@ namespace Munilytics.Server.Features.Admin.SyncKpis
                 }
             }
 
-            return new SyncKpiResponse("KPI successfully synced", true );
+            logger.LogInformation("Finished background job for KPI sync");
         }
     }
 }

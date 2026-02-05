@@ -1,20 +1,23 @@
+using FastEndpoints;
+using Microsoft.Build.Framework;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Munilytics.Server.Domain.Entities;
+using Munilytics.Server.Features.Admin.SyncKpis.DTOs;
+using Munilytics.Server.Features.Admin.SyncMunicipalities.DTOs;
+using Munilytics.Server.Infrastructure.Persistence;
+using Munilytics.Server.Interfaces;
+using Munilytics.Server.Models.DTOs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Wolverine;
-using FastEndpoints;
-using Munilytics.Server.Features.Admin.SyncMunicipalities.DTOs;
-using Munilytics.Server.Features.Admin.SyncKpis.DTOs;
 using Wolverine.Attributes;
-using Munilytics.Server.Infrastructure.Persistence;
-using Munilytics.Server.Interfaces;
-using Munilytics.Server.Models.DTOs;
-using Microsoft.EntityFrameworkCore;
-using Munilytics.Server.Domain.Entities;
 
 namespace Munilytics.Server.Features.Admin.SyncMunicipalities
 {
+    [LocalQueue("sync-kolada")]
     public record SyncMunicipalitiesCommand();
     public class SyncMunicipalities : EndpointWithoutRequest<SyncMunicipalitiesResponse>
     {
@@ -33,23 +36,17 @@ namespace Munilytics.Server.Features.Admin.SyncMunicipalities
 
         public override async Task HandleAsync(CancellationToken ct)
         {
-            try
-            {
-                var result = await _bus.InvokeAsync<SyncMunicipalitiesResponse>(new SyncMunicipalitiesCommand(), ct);
-                await Send.OkAsync(result, ct);
-            }
-            catch (ApplicationException ex)
-            {
-                ThrowError(ex.Message);
-            }
+            await _bus.SendAsync(new SyncMunicipalitiesCommand());
+            await Send.AcceptedAtAsync("Municipalities is being processed");
         }
     }
 
     public static class SyncMunicipalitiesHandler
     {
         [Transactional]
-        public static async Task<SyncMunicipalitiesResponse> Handle(SyncMunicipalitiesCommand cmd, MunilyticsDbContext db, IKoladaService koladaService, CancellationToken ct)
+        public static async Task Handle(SyncMunicipalitiesCommand cmd, MunilyticsDbContext db, IKoladaService koladaService, ILogger<SyncMunicipalities> logger, CancellationToken ct)
         {
+            logger.LogInformation("Started Municipalities Sync");
             var municipalities = await koladaService.GetMunicipalitiesAsync<KoladaMunicipalityDto>(ct);
 
             if (municipalities == null || municipalities.Count == 0)
@@ -82,8 +79,7 @@ namespace Munilytics.Server.Features.Admin.SyncMunicipalities
                     db.Dim_Municipalities.Add(newEntity);
                 }
             }
-
-            return new SyncMunicipalitiesResponse("Municipalities successfully synced", true);
+            logger.LogInformation("Finished Municipalities Sync");
         }
     }
 }

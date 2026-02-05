@@ -1,16 +1,20 @@
 using FastEndpoints;
 using FastEndpoints.Security;
 using FastEndpoints.Swagger;
+using JasperFx;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Munilytics.Server.Domain.Entities;
+using Munilytics.Server.Infrastructure.Kolada;
 using Munilytics.Server.Infrastructure.Persistence;
+using Munilytics.Server.Interfaces;
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
+using Wolverine.ErrorHandling;
 using Wolverine.Postgresql;
-using Munilytics.Server.Infrastructure.Kolada;
-using Munilytics.Server.Interfaces;
+using Wolverine.Runtime.Agents;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,6 +36,16 @@ builder.Host.UseWolverine(opt =>
     opt.UseEntityFrameworkCoreTransactions();
     opt.Policies.UseDurableInboxOnAllListeners();
     opt.Policies.UseDurableOutboxOnAllSendingEndpoints();
+    opt.Policies.OnException<ApplicationException>()
+        .RetryWithCooldown(
+        TimeSpan.FromSeconds(5),
+        TimeSpan.FromSeconds(10),
+        TimeSpan.FromSeconds(15)
+        );
+    opt.Services.AddSingularAgent<KoladaSyncAgent>();
+    opt.LocalQueue("sync-kolada")
+    .UseDurableInbox()
+    .Sequential();
 });
 
 // Postgres setup with wolverine
@@ -86,4 +100,4 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerGen();
 }
 
-app.Run();
+await app.RunJasperFxCommands(args);

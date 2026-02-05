@@ -12,6 +12,8 @@ namespace Munilytics.Server.Infrastructure.Persistence
         public DbSet<DimGender> Dim_Gender { get; set; }
         public DbSet<DimTime> Dim_Time { get; set; }
 
+        public DbSet<SystemSetting> SystemSettings { get; set; }
+
         public MunilyticsDbContext(DbContextOptions<MunilyticsDbContext> options) : base(options)
         {
 

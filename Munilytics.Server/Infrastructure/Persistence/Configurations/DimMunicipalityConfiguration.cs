@@ -10,11 +10,11 @@ namespace Munilytics.Server.Infrastructure.Persistence.Configurations
         {
             builder.HasKey(dm => dm.Id);
 
-            builder.Property(dm => dm.Title).HasMaxLength(200).IsRequired();
-            builder.Property(dm => dm.Type).HasMaxLength(200).IsRequired();
-            builder.Property(dm => dm.County).HasMaxLength(200).IsRequired();
-            builder.Property(dm => dm.SkrGroupCode).HasMaxLength(200).IsRequired();
-            builder.Property(dm => dm.SkrGroupName).HasMaxLength(200).IsRequired();
+            builder.Property(dm => dm.Title).IsRequired();
+            builder.Property(dm => dm.Type).IsRequired();
+            builder.Property(dm => dm.County).IsRequired();
+            builder.Property(dm => dm.SkrGroupCode).IsRequired();
+            builder.Property(dm => dm.SkrGroupName).IsRequired();
 
             builder
                 .HasMany(dm => dm.FactKpiMeasurements)
