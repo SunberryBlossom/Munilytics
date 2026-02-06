@@ -58,7 +58,7 @@ namespace Munilytics.Server.Infrastructure.Kolada
                 {
                     { "Sync.Kpis", new SyncKpiCommand() },
                     { "Sync.Municipalities", new SyncMunicipalitiesCommand() },
-                    { "Sync.Fact", new SyncFactCommand() }
+                    { "Sync.Fact", new SyncAllFactsCommand() }
                 };
 
             foreach (var job in jobs)
