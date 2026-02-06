@@ -36,12 +36,12 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
         }
     }
 
-    public static class SyncFactDataHandler
+    public static class SyncFactHandler
     {
         [Transactional]
-        public static async Task<SyncFactDataResponse> Handle (int year, string municiaplityKoladaId, SyncFactCommand cmd, CancellationToken ct, MunilyticsDbContext db, IKoladaService koladaService)
+        public static async Task<SyncFactDataResponse> Handle (SyncFactCommand cmd, CancellationToken ct, MunilyticsDbContext db, IKoladaService koladaService)
         {
-            var newFacts = await koladaService.GetFactAsync<KoladaFactDto>(year.ToString(), municiaplityKoladaId, ct);
+            var newFacts = await koladaService.GetFactAsync<KoladaFactDto>(cmd.year.ToString(), cmd.municipalityKoladaId, ct);
 
             if (newFacts is null || newFacts.Count == 0)
             {
@@ -98,7 +98,7 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
         }
     }
 
-    public static class SyncAllFacts
+    public static class SyncAllFactsHandler
     {
         public static async Task Handle(SyncAllFactsCommand cmd, CancellationToken ct, MunilyticsDbContext db, IMessageBus bus)
         {
