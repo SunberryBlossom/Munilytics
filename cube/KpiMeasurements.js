@@ -9,7 +9,7 @@ cube(`KpiMeasurements`, {
      "gender_id"              AS genderId,
 
      "value"                 AS value,
-     "is_definitive"         AS isDefinitive,
+     "status"                AS status,
      "count"                 AS observationCount,
      "import_date"           AS importDate,
      "latest_update"         AS latestUpdate
@@ -78,9 +78,9 @@ cube(`KpiMeasurements`, {
       primaryKey: true
     },
     
-    isDefinitive: {
-      sql: `isDefinitive`,
-      type: `boolean`
+    status: {
+      sql: `status`,
+      type: `string`
     },
     importDate: {
       sql: `importDate`,
@@ -92,11 +92,13 @@ cube(`KpiMeasurements`, {
     }
 
   },
+  
+  //This section is for defining reusable filters (segments) that can be applied to measures. For example, you can define a segment for "definitive" KPI values and then use it in your queries to filter the data accordingly.
 // Segments: reusable business filters applied to fact data
   segments: {
      // Includes only definitive (final, confirmed) KPI values
     definitiveOnly: {
-      sql: `${CUBE}.isDefinitive = true`
+      sql: `${CUBE}.status = 'definitive'`
     }
   }
 });
