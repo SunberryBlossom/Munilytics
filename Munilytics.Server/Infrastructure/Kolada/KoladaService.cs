@@ -67,7 +67,7 @@ namespace Munilytics.Server.Infrastructure.Kolada
 
         public async Task<List<KoladaFactDto>> GetFactAsync<T>(string year, string municipality_id, CancellationToken ct = default)
         {
-            var response = await GetAsync<KoladaResponseDto<KoladaFactDto>>($"/data/municipality/{municipality_id}/year/{year}", ct);
+            var response = await GetAsync<KoladaResponseDto<KoladaFactDto>>($"data/municipality/{municipality_id}/year/{year}", ct);
             return response?.Values ?? new List<KoladaFactDto>();
         }
     }
