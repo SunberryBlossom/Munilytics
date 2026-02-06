@@ -12,7 +12,8 @@ using Wolverine.Attributes;
 namespace Munilytics.Server.Features.Admin.SyncFactData
 {
     [LocalQueue("sync-kolada")]
-    public record SyncFactCommand();
+    public record SyncFactCommand(int year, string municipalityKoladaId);
+    public record SyncAllFactsCommand();
     public class SyncFactData : EndpointWithoutRequest<SyncFactDataResponse>
     {
         private readonly IMessageBus _bus;
@@ -30,7 +31,7 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
 
         public override async Task HandleAsync(CancellationToken ct)
         {
-            await _bus.SendAsync(new SyncFactCommand());
+            await _bus.SendAsync(new SyncAllFactsCommand());
             await Send.AcceptedAtAsync("Syncing Fact Data in the background", cancellation: ct);
         }
     }
@@ -38,9 +39,9 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
     public static class SyncFactDataHandler
     {
         [Transactional]
-        public static async Task<SyncFactDataResponse> Handle (SyncFactCommand cmd, CancellationToken ct, MunilyticsDbContext db, IKoladaService koladaService)
+        public static async Task<SyncFactDataResponse> Handle (int year, string municiaplityKoladaId, SyncFactCommand cmd, CancellationToken ct, MunilyticsDbContext db, IKoladaService koladaService)
         {
-            var newFacts = await koladaService.GetFactAsync<KoladaFactDto>(ct);
+            var newFacts = await koladaService.GetFactAsync<KoladaFactDto>(year.ToString(), municiaplityKoladaId, ct);
 
             if (newFacts is null || newFacts.Count == 0)
             {
@@ -97,4 +98,21 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
         }
     }
 
+    public static class SyncAllFacts
+    {
+        public static async Task Handle(SyncAllFactsCommand cmd, CancellationToken ct, MunilyticsDbContext db, IMessageBus bus)
+        {
+            var municipalities = await db.Dim_Municipalities
+                .Select(m => m.KoladaId)
+                .ToListAsync();
+
+            for (int i = 1994; i <= DateTime.Now.Year; i++)
+            {
+                foreach (var m in municipalities)
+                {
+                    await bus.SendAsync(new SyncFactCommand(i, m));
+                }
+            }
+        }
+    }   
 }
