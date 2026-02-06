@@ -56,6 +56,16 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
             {
                 var genderString = string.IsNullOrWhiteSpace(dto.Gender) ? "T" : dto.Gender;
 
+                var municipality = await db.Dim_Municipalities
+                    .FirstOrDefaultAsync(m => m.KoladaId == dto.MunicipalityKoladaId);
+                var kpi = await db.Dim_KPIs
+                    .FirstOrDefaultAsync(k => k.KpiCode == dto.KpiKoladaId);
+
+                if (kpi is null)
+                {
+                    continue;
+                }
+
                 if (!Enum.TryParse<GenderCode>(genderString, true, out var genderCode) ||
                     !gendersByCode.TryGetValue(genderCode, out var genderId))
                 {
@@ -66,27 +76,25 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
                 {
                     existingIdentity.Value = dto.Value;
                     existingIdentity.Count = dto.Count;
-                    existingIdentity.LatestUpdate = DateTime.Now;
+                    existingIdentity.LatestUpdate = DateTime.UtcNow;
                     existingIdentity.DimTime = new DimTime
                     {
                         Year = dto.Year
                     };
                     existingIdentity.DimGenderId = genderId;
                     existingIdentity.Status = dto.Status;
+                    existingIdentity.DimMunicipalityId = municipality.Id;
+                    existingIdentity.DimKpiId = kpi.Id;
                 }
                 else
                 {
-                    var municipality = await db.Dim_Municipalities
-                        .FirstOrDefaultAsync(m => m.KoladaId == dto.MunicipalityKoladaId);
-                    var kpi = await db.Dim_KPIs
-                        .FirstOrDefaultAsync(k => k.KpiCode == dto.KpiKoladaId);
 
                     var newEntity = new FactKpiMeasurement
                     {
                         Value = dto.Value,
                         Count = dto.Count,
-                        ImportDate = DateTime.Today,
-                        LatestUpdate = DateTime.Now,
+                        ImportDate = DateTime.UtcNow,
+                        LatestUpdate = DateTime.UtcNow,
                         DimTime = new DimTime
                         {
                             Year = dto.Year
