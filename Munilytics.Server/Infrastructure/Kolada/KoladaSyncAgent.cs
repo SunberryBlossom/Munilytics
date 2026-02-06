@@ -2,6 +2,7 @@
 using JasperFx.Core;
 using Microsoft.EntityFrameworkCore;
 using Munilytics.Server.Domain.Entities;
+using Munilytics.Server.Features.Admin.SyncFactData;
 using Munilytics.Server.Features.Admin.SyncKpis;
 using Munilytics.Server.Features.Admin.SyncMunicipalities;
 using Munilytics.Server.Infrastructure.Persistence;
@@ -56,7 +57,8 @@ namespace Munilytics.Server.Infrastructure.Kolada
             var jobs = new Dictionary<string, object>
                 {
                     { "Sync.Kpis", new SyncKpiCommand() },
-                    { "Sync.Municipalities", new SyncMunicipalitiesCommand() }
+                    { "Sync.Municipalities", new SyncMunicipalitiesCommand() },
+                    { "Sync.Fact", new SyncFactCommand() }
                 };
 
             foreach (var job in jobs)

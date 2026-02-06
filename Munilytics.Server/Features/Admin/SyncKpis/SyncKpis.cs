@@ -30,7 +30,7 @@ namespace Munilytics.Server.Features.Admin.SyncKpis
         public override async Task HandleAsync(CancellationToken ct)
         {
             await _bus.SendAsync(new SyncKpiCommand());
-            await Send.AcceptedAtAsync("Syncing KPI in the background", ct);
+            await Send.AcceptedAtAsync("Syncing KPI in the background", cancellation: ct);
         }
     }
 
