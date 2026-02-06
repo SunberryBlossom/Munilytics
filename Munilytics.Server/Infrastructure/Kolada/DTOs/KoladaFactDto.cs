@@ -13,7 +13,7 @@ namespace Munilytics.Server.Infrastructure.Kolada.DTOs
         [property: JsonPropertyName("value")] decimal Value,
         [property: JsonPropertyName("isdeleted")] bool Isdeleted,
         [property: JsonPropertyName("kpi")] int KpiId,
-        [property: JsonPropertyName("period")] string Period,
+        [property: JsonPropertyName("period")] int Year,
         [property: JsonPropertyName("municipality")] int MunicipalityId
     );
 }
