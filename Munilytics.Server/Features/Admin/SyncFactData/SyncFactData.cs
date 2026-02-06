@@ -11,6 +11,7 @@ using Wolverine.Attributes;
 
 namespace Munilytics.Server.Features.Admin.SyncFactData
 {
+    [LocalQueue("sync-kolada")]
     public record SyncFactCommand();
     public class SyncFactData : EndpointWithoutRequest<SyncFactDataResponse>
     {
@@ -29,15 +30,8 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
 
         public override async Task HandleAsync(CancellationToken ct)
         {
-            try
-            {
-                var result = await _bus.InvokeAsync<SyncFactDataResponse>(new SyncFactCommand(), ct);
-                await Send.OkAsync(result, ct);
-            }
-            catch (ApplicationException ex)
-            {
-                ThrowError(ex.Message);
-            }
+            await _bus.SendAsync(new SyncFactCommand());
+            await Send.AcceptedAtAsync("Syncing Fact Data in the background", cancellation: ct);
         }
     }
 
