@@ -75,6 +75,7 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
                         Year = dto.Year
                     };
                     existingIdentity.DimGenderId = genderId;
+                    existingIdentity.Status = dto.Status;
                 }
                 else
                 {
@@ -90,7 +91,8 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
                         {
                             Year = dto.Year
                         },
-                        DimGenderId = genderId
+                        DimGenderId = genderId,
+                        Status = dto.Status
                     };
 
                     db.Fact_KpiMeasurements.Add(newEntity);
