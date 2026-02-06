@@ -5,6 +5,7 @@ using JasperFx;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Http.Resilience;
 using Munilytics.Server.Domain.Entities;
 using Munilytics.Server.Infrastructure.Kolada;
 using Munilytics.Server.Infrastructure.Persistence;
@@ -79,13 +80,26 @@ builder.Services.SwaggerDocument(o =>
     };
 });
 // Registers HttpClient service with DI for our KoladaService
-builder.Services.AddHttpClient<IKoladaService, KoladaService>()
-    .AddStandardResilienceHandler(options =>
-    {
-        options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(4);
-        options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(4);
-        options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(10);
-    });
+#pragma warning disable EXTEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+builder.Services.AddHttpClient<IKoladaService, KoladaService>(client =>
+{
+    // 1. Set the outer HttpClient timeout to Infinite so it doesn't cut off Polly
+    client.Timeout = Timeout.InfiniteTimeSpan;
+})
+.RemoveAllResilienceHandlers() // <--- CRITICAL FIX: Removes the Aspire default handler
+.AddStandardResilienceHandler() // Now adds your custom handler as the ONLY handler
+.Configure(options =>
+{
+    // Total time for the operation (retries + delays + execution)
+    options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(4);
+
+    // Time allowed for ONE attempt
+    options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(4);
+
+    // Circuit Breaker
+    options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(10);
+});
+#pragma warning restore EXTEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
 
 var app = builder.Build();
