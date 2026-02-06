@@ -39,14 +39,14 @@ builder.Host.UseWolverine(opt =>
     opt.Policies.UseDurableOutboxOnAllSendingEndpoints();
     opt.Policies.OnException<ApplicationException>()
         .RetryWithCooldown(
-        TimeSpan.FromSeconds(5),
-        TimeSpan.FromSeconds(10),
-        TimeSpan.FromSeconds(15)
+        TimeSpan.FromMinutes(1),
+        TimeSpan.FromMinutes(5),
+        TimeSpan.FromMinutes(15)
         );
     opt.Services.AddSingularAgent<KoladaSyncAgent>();
     opt.LocalQueue("sync-kolada")
     .UseDurableInbox()
-    .Sequential();
+    .MaximumParallelMessages(3);
 });
 
 // Postgres setup with wolverine
@@ -89,9 +89,12 @@ builder.Services.AddHttpClient<IKoladaService, KoladaService>(client =>
 .AddStandardResilienceHandler()
 .Configure(options =>
 {
-    options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(4);
-    options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(4);
-    options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(10);
+    options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(15);
+    options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(3);
+    options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(6);
+    options.Retry.MaxRetryAttempts = 3;
+    options.Retry.BackoffType = Polly.DelayBackoffType.Exponential;
+    options.Retry.Delay = TimeSpan.FromSeconds(15);
 });
 
 var app = builder.Build();
