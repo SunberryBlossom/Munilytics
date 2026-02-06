@@ -83,7 +83,6 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
                     };
                     existingIdentity.DimGenderId = genderId;
                     existingIdentity.Status = dto.Status;
-                    existingIdentity.DimMunicipalityId = municipality.Id;
                     existingIdentity.DimKpiId = kpi.Id;
                 }
                 else
