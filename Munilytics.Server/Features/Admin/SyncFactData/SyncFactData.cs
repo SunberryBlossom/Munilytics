@@ -49,7 +49,7 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
             }
 
             //For MVP i will only check Municipality ID. For real production we would need to compare all rows
-            var existingFacts = await db.Fact_KpiMeasurements.ToDictionaryAsync(f => f.DimMunicipalityId, f => f, ct);
+            var existingFacts = await db.Fact_KpiMeasurements.ToDictionaryAsync(f => f.DimMunicipalityId.ToString(), f => f, ct);
             var gendersByCode = await db.Dim_Gender.ToDictionaryAsync(g => g.Code, g => g.Id, ct);
 
             foreach (var dto in newFacts)
@@ -60,7 +60,7 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
                     throw new ApplicationException($"Unknown gender code '{dto.Gender}'.");
                 }
 
-                if (existingFacts.TryGetValue(dto.MunicipalityId, out var existingIdentity))
+                if (existingFacts.TryGetValue(dto.MunicipalityKoladaId, out var existingIdentity))
                 {
                     existingIdentity.Value = dto.Value;
                     existingIdentity.Count = dto.Count;
@@ -74,20 +74,26 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
                 }
                 else
                 {
+                    var municipality = await db.Dim_Municipalities
+                        .FirstOrDefaultAsync(m => m.KoladaId == dto.MunicipalityKoladaId);
+                    var kpi = await db.Dim_KPIs
+                        .FirstOrDefaultAsync(k => k.KpiCode == dto.KpiKoladaId);
+
                     var newEntity = new FactKpiMeasurement
                     {
                         Value = dto.Value,
                         Count = dto.Count,
                         ImportDate = DateTime.Today,
                         LatestUpdate = DateTime.Now,
-                        DimMunicipalityId = dto.MunicipalityId,
-                        DimKpiId = dto.KpiId,
                         DimTime = new DimTime
                         {
                             Year = dto.Year
                         },
                         DimGenderId = genderId,
-                        Status = dto.Status
+                        Status = dto.Status,
+
+                        DimMunicipalityId = municipality.Id,
+                        DimKpiId = kpi.Id
                     };
 
                     db.Fact_KpiMeasurements.Add(newEntity);
