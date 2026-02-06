@@ -2,8 +2,8 @@
 {
     public enum GenderCode
     {
-        T,  //Total
-        K,  //Female
-        M   //Male
+        T = 1,  //Total
+        K = 2,  //Female
+        M = 3   //Male
     }
 }
