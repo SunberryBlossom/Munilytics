@@ -1,0 +1,62 @@
+сube("Kpis",{
+  //sql query to get data from source, in this case from dwh schema and Dim_Kpi table
+    sql: `
+  SELECT 
+    "id"                     AS id,
+     "title"                 AS title,
+     "description"           AS description,
+     "is_divided_by_gender"  AS isDividedByGender,
+     "municipality_Type"      AS municipalityType,
+     "auspice"               AS auspice,
+     "operation_area"        AS operatingArea,
+     "perspective"           AS perspective,
+     "unit"                  AS unit
+
+
+
+        FROM dwh."Dim_Kpi"
+    `,
+
+    // Dimensions used for grouping and filtering analytics queries
+   dimensions:{
+    id:{
+        sql:"id",
+        type:'number',
+        primaryKey:true
+    },
+        title:{
+        sql:"title",
+        type:'string'
+        },
+        description:{
+        sql:"description",
+        type:'string'
+        },
+        isDividedByGender:{
+        sql:"isDividedByGender",
+        type:'boolean'
+        },
+        municipalityType:{
+        sql:"municipalityType",
+        type:'string'
+        },
+        auspice:{
+        sql:"auspice",
+        type:'string'
+        },
+        operatingArea:{
+        sql:"operatingArea",
+        type:'string'
+        },
+        perspective:{
+        sql:"perspective",
+        type:'string'
+        },
+        unit:{
+        sql:"unit",
+        type:'string'
+        }
+    
+   }
+
+});
