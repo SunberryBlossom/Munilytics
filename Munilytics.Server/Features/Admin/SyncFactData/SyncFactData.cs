@@ -1,16 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Wolverine;
 using FastEndpoints;
+using Microsoft.EntityFrameworkCore;
+using Munilytics.Server.Domain.Entities;
 using Munilytics.Server.Features.Admin.SyncFactData.DTOs;
-using Wolverine.Attributes;
+using Munilytics.Server.Infrastructure.Kolada.DTOs;
 using Munilytics.Server.Infrastructure.Persistence;
 using Munilytics.Server.Interfaces;
-using Munilytics.Server.Infrastructure.Kolada;
-using Munilytics.Server.Models.DTOs;
-using Munilytics.Server.Infrastructure.Kolada.DTOs;
+using Wolverine;
+using Wolverine.Attributes;
 
 namespace Munilytics.Server.Features.Admin.SyncFactData
 {
@@ -26,7 +22,7 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
 
         public override void Configure()
         {
-            Get("/admin/fact");
+            Post("/admin/sync/facts");
             AllowAnonymous();
         }
 
@@ -56,7 +52,39 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
                 throw new ApplicationException("Could not find any facts from Kolada. Something must be wrong");
             }
 
-            var existingFacts = db.Fact_KpiMeasurements.ToList();
+            //For MVP i will only check Municipality ID. For real production we would need to compare all rows
+            var existingFacts = await db.Fact_KpiMeasurements.ToDictionaryAsync(f => f.DimMunicipalityId, f => f, ct);
+
+            foreach (var dto in newFacts)
+            {
+                if (existingFacts.TryGetValue(dto.MunicipalityId, out var existingIdentity))
+                {
+                    existingIdentity.Value = dto.Value;
+                    existingIdentity.Count = dto.Count;
+                    existingIdentity.LatestUpdate = DateTime.Now;
+
+                    /* Values from JSON that we don't have in our facttable yet:
+                     * Gender (This is it's own dimension but dont know how to get a Gender string into entire object)
+                     * Status
+                     * IsDeleted
+                     * Period
+                    */
+                }
+                else
+                {
+                    var newEntity = new FactKpiMeasurement
+                    {
+                        Value = dto.Value,
+                        Count = dto.Count,
+                        ImportDate = DateTime.Now,
+                        LatestUpdate = DateTime.Now,
+                        DimMunicipalityId = dto.MunicipalityId,
+                        DimKpiId = dto.KpiId,
+                    };
+
+                    db.Fact_KpiMeasurements.Add(newEntity);
+                }
+            }
 
             return new SyncFactDataResponse("Syncing of facts complete", true);
         }
