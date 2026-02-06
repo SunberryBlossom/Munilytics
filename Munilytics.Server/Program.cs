@@ -79,7 +79,14 @@ builder.Services.SwaggerDocument(o =>
     };
 });
 // Registers HttpClient service with DI for our KoladaService
-builder.Services.AddHttpClient<IKoladaService, KoladaService>();
+builder.Services.AddHttpClient<IKoladaService, KoladaService>()
+    .AddStandardResilienceHandler(options =>
+    {
+        options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(4);
+        options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(4);
+        options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(10);
+    });
+
 
 var app = builder.Build();
 
