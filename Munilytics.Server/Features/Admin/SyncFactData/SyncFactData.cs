@@ -54,7 +54,9 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
 
             foreach (var dto in newFacts)
             {
-                if (!Enum.TryParse<GenderCode>(dto.Gender, true, out var genderCode) ||
+                var genderString = string.IsNullOrWhiteSpace(dto.Gender) ? "T" : dto.Gender;
+
+                if (!Enum.TryParse<GenderCode>(genderString, true, out var genderCode) ||
                     !gendersByCode.TryGetValue(genderCode, out var genderId))
                 {
                     throw new ApplicationException($"Unknown gender code '{dto.Gender}'.");
