@@ -419,3 +419,4 @@ FodyWeavers.xsd
 
 ./cube/*
 frontend/package-lock.json
+/cube/.cubestore/data

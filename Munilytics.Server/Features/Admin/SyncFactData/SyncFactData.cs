@@ -1,16 +1,13 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Wolverine;
 using FastEndpoints;
+using Microsoft.EntityFrameworkCore;
+using Munilytics.Server.Domain.Entities;
+using Munilytics.Server.Domain.Enums;
 using Munilytics.Server.Features.Admin.SyncFactData.DTOs;
-using Wolverine.Attributes;
+using Munilytics.Server.Infrastructure.Kolada.DTOs;
 using Munilytics.Server.Infrastructure.Persistence;
 using Munilytics.Server.Interfaces;
-using Munilytics.Server.Infrastructure.Kolada;
-using Munilytics.Server.Models.DTOs;
-using Munilytics.Server.Infrastructure.Kolada.DTOs;
+using Wolverine;
+using Wolverine.Attributes;
 
 namespace Munilytics.Server.Features.Admin.SyncFactData
 {
@@ -26,7 +23,7 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
 
         public override void Configure()
         {
-            Get("/admin/fact");
+            Post("/admin/sync/facts");
             AllowAnonymous();
         }
 
@@ -56,7 +53,51 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
                 throw new ApplicationException("Could not find any facts from Kolada. Something must be wrong");
             }
 
-            var existingFacts = db.Fact_KpiMeasurements.ToList();
+            //For MVP i will only check Municipality ID. For real production we would need to compare all rows
+            var existingFacts = await db.Fact_KpiMeasurements.ToDictionaryAsync(f => f.DimMunicipalityId, f => f, ct);
+            var gendersByCode = await db.Dim_Gender.ToDictionaryAsync(g => g.Code, g => g.Id, ct);
+
+            foreach (var dto in newFacts)
+            {
+                if (!Enum.TryParse<GenderCode>(dto.Gender, true, out var genderCode) ||
+                    !gendersByCode.TryGetValue(genderCode, out var genderId))
+                {
+                    throw new ApplicationException($"Unknown gender code '{dto.Gender}'.");
+                }
+
+                if (existingFacts.TryGetValue(dto.MunicipalityId, out var existingIdentity))
+                {
+                    existingIdentity.Value = dto.Value;
+                    existingIdentity.Count = dto.Count;
+                    existingIdentity.LatestUpdate = DateTime.Now;
+                    existingIdentity.DimTime = new DimTime
+                    {
+                        Year = dto.Year
+                    };
+                    existingIdentity.DimGenderId = genderId;
+                    existingIdentity.Status = dto.Status;
+                }
+                else
+                {
+                    var newEntity = new FactKpiMeasurement
+                    {
+                        Value = dto.Value,
+                        Count = dto.Count,
+                        ImportDate = DateTime.Today,
+                        LatestUpdate = DateTime.Now,
+                        DimMunicipalityId = dto.MunicipalityId,
+                        DimKpiId = dto.KpiId,
+                        DimTime = new DimTime
+                        {
+                            Year = dto.Year
+                        },
+                        DimGenderId = genderId,
+                        Status = dto.Status
+                    };
+
+                    db.Fact_KpiMeasurements.Add(newEntity);
+                }
+            }
 
             return new SyncFactDataResponse("Syncing of facts complete", true);
         }

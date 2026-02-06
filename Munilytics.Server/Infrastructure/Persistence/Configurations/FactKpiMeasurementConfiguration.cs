@@ -11,7 +11,7 @@ namespace Munilytics.Server.Infrastructure.Persistence.Configurations
             builder.HasKey(kpm => kpm.Id);
 
             builder.Property(fkm => fkm.Value).IsRequired();
-            builder.Property(fkm => fkm.IsDefinite).IsRequired();
+            builder.Property(fkm => fkm.Status).IsRequired();
             builder.Property(fkm => fkm.Count).IsRequired();
             builder.Property(fkm => fkm.ImportDate).IsRequired();
             builder.Property(fkm => fkm.LatestUpdate).IsRequired();
