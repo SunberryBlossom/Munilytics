@@ -1,6 +1,7 @@
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Munilytics.Server.Domain.Entities;
+using Munilytics.Server.Domain.Enums;
 using Munilytics.Server.Features.Admin.SyncFactData.DTOs;
 using Munilytics.Server.Infrastructure.Kolada.DTOs;
 using Munilytics.Server.Infrastructure.Persistence;
@@ -54,21 +55,26 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
 
             //For MVP i will only check Municipality ID. For real production we would need to compare all rows
             var existingFacts = await db.Fact_KpiMeasurements.ToDictionaryAsync(f => f.DimMunicipalityId, f => f, ct);
+            var gendersByCode = await db.Dim_Gender.ToDictionaryAsync(g => g.Code, g => g.Id, ct);
 
             foreach (var dto in newFacts)
             {
+                if (!Enum.TryParse<GenderCode>(dto.Gender, true, out var genderCode) ||
+                    !gendersByCode.TryGetValue(genderCode, out var genderId))
+                {
+                    throw new ApplicationException($"Unknown gender code '{dto.Gender}'.");
+                }
+
                 if (existingFacts.TryGetValue(dto.MunicipalityId, out var existingIdentity))
                 {
                     existingIdentity.Value = dto.Value;
                     existingIdentity.Count = dto.Count;
                     existingIdentity.LatestUpdate = DateTime.Now;
-
-                    /* Values from JSON that we don't have in our facttable yet:
-                     * Gender (This is it's own dimension but dont know how to get a Gender string into entire object)
-                     * Status
-                     * IsDeleted
-                     * Period
-                    */
+                    existingIdentity.DimTime = new DimTime
+                    {
+                        Year = dto.Year
+                    };
+                    existingIdentity.DimGenderId = genderId;
                 }
                 else
                 {
@@ -76,10 +82,15 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
                     {
                         Value = dto.Value,
                         Count = dto.Count,
-                        ImportDate = DateTime.Now,
+                        ImportDate = DateTime.Today,
                         LatestUpdate = DateTime.Now,
                         DimMunicipalityId = dto.MunicipalityId,
                         DimKpiId = dto.KpiId,
+                        DimTime = new DimTime
+                        {
+                            Year = dto.Year
+                        },
+                        DimGenderId = genderId
                     };
 
                     db.Fact_KpiMeasurements.Add(newEntity);
