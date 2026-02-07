@@ -10,10 +10,13 @@ namespace Munilytics.Server.Infrastructure.Kolada
     {
         private readonly HttpClient _httpClient;
         private const string BaseUrl = "https://api.kolada.se/v3/";
+        private ILogger<KoladaService> _logger;
 
-        public KoladaService(HttpClient httpClient)
+        public KoladaService(HttpClient httpClient, ILogger<KoladaService> logger)
         {
             _httpClient = httpClient;
+            _logger = logger;
+
         }
 
         /// <summary>
@@ -27,7 +30,19 @@ namespace Munilytics.Server.Infrastructure.Kolada
             try
             {
                 using var response = await _httpClient.GetAsync(BaseUrl + endpoint, HttpCompletionOption.ResponseHeadersRead, ct);
-                response.EnsureSuccessStatusCode(); //Throws HttpRequestException if Statuscode is NOT 200-299.
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorBody = await response.Content.ReadAsStringAsync();
+
+                    _logger.LogError(
+                        "Kolada API Request Failed. URL: {Url} Status: {StatusCode} Response: {Response}",
+                        BaseUrl + endpoint,
+                        response.StatusCode,
+                        errorBody
+                        );
+
+                    response.EnsureSuccessStatusCode(); // Throws HttpRequestException if Statuscode is NOT 200-299.
+                }
 
                 using var contentStream = await response.Content.ReadAsStreamAsync(ct);
                 var options = new JsonSerializerOptions
@@ -37,8 +52,9 @@ namespace Munilytics.Server.Infrastructure.Kolada
 
                 return await JsonSerializer.DeserializeAsync<T>(contentStream, options, ct);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "System error fetching from: {Endpoint}", endpoint);
                 throw;
             }
         }
@@ -65,10 +81,44 @@ namespace Munilytics.Server.Infrastructure.Kolada
             return response?.Values ?? new List<KoladaKpiDto>();
         }
 
-        public async Task<List<KoladaFactDto>> GetFactAsync<T>(string year, string municipality_id, CancellationToken ct = default)
+        public async Task<List<KoladaFactDto>> GetFactAsync<T>(string[] kpiArray, string year, CancellationToken ct = default)
         {
-            var response = await GetAsync<KoladaResponseDto<KoladaFactDto>>($"data/municipality/{municipality_id}/year/{year}", ct);
-            return response?.Values ?? new List<KoladaFactDto>();
+            string kpis = String.Join(",", kpiArray);
+            _logger.LogInformation("{Kpis}", kpis);
+            var response = await GetAsync<KoladaResponseDto<KoladaGroupResponse>>($"data/kpi/{kpis}/year/{year}", ct);
+
+            var resultList = new List<KoladaFactDto>();
+
+            if (response?.Values is null)
+            {
+                return resultList;
+            }
+
+            foreach (var group in response.Values)
+            {
+                if (group.InnerValues is null)
+                {
+                    continue;
+                }
+
+                foreach (var point in group.InnerValues)
+                {
+                    resultList.Add(new KoladaFactDto
+                    (
+                        Gender: point.Gender ?? "T",
+                        Count: point.Count ?? 0,
+                        Status: point.Status ?? string.Empty,
+                        Value: point.Value ?? 0,
+                        Isdeleted: false,
+                        KpiKoladaId: group.Kpi,
+                        Year: group.Period,
+                        MunicipalityKoladaId: group.Municipality
+                    ));
+                }
+
+            }
+
+            return resultList;
         }
     }
 }

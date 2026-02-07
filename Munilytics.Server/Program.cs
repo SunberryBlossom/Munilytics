@@ -37,16 +37,15 @@ builder.Host.UseWolverine(opt =>
     opt.UseEntityFrameworkCoreTransactions();
     opt.Policies.UseDurableInboxOnAllListeners();
     opt.Policies.UseDurableOutboxOnAllSendingEndpoints();
-    opt.Policies.OnException<ApplicationException>()
+    opt.Policies.OnException<Exception>()
         .RetryWithCooldown(
         TimeSpan.FromMinutes(1),
         TimeSpan.FromMinutes(5),
-        TimeSpan.FromMinutes(15)
+        TimeSpan.FromMinutes(30)
         );
     opt.Services.AddSingularAgent<KoladaSyncAgent>();
     opt.LocalQueue("sync-kolada")
-    .UseDurableInbox()
-    .MaximumParallelMessages(3);
+    .MaximumParallelMessages(5);
 });
 
 // Postgres setup with wolverine
@@ -86,15 +85,16 @@ builder.Services.AddHttpClient<IKoladaService, KoladaService>(client =>
     client.Timeout = Timeout.InfiniteTimeSpan;
 })
 .RemoveAllResilienceHandlers()
-.AddStandardResilienceHandler()
-.Configure(options =>
+.AddStandardResilienceHandler(options =>
 {
-    options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(15);
     options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(3);
-    options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(6);
+    options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(15);
+
     options.Retry.MaxRetryAttempts = 3;
     options.Retry.BackoffType = Polly.DelayBackoffType.Exponential;
-    options.Retry.Delay = TimeSpan.FromSeconds(15);
+    options.Retry.Delay = TimeSpan.FromSeconds(2);
+
+    options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(7);
 });
 
 var app = builder.Build();
