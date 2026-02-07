@@ -9,6 +9,6 @@ namespace Munilytics.Server.Interfaces
         Task<T?> GetAsync<T>(string endpoint, CancellationToken ct);
         Task<List<KoladaMunicipalityDto>> GetMunicipalitiesAsync<T>(CancellationToken ct = default);
         Task<List<KoladaKpiDto>> GetKpisAsync<T>(CancellationToken ct = default);
-        Task<List<KoladaFactDto>> GetFactAsync<T>(string year, string municipalityKoladaId, CancellationToken ct = default);
+        Task<List<KoladaFactDto>> GetFactAsync<T>(string[] kpiArray, string year, CancellationToken ct = default);
     }
 }
