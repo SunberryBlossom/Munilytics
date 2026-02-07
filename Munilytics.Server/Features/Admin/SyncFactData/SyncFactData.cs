@@ -168,8 +168,9 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
                 .Select(k => k.KpiCode)
                 .ToArrayAsync(ct);
 
-            // This batches all kpis into 25 arrays of kpis.
+            // This batches all kpis into 10 arrays of kpis.
             // Note that Kolada has a maximum of 25 members.
+            // However since some KPIs can be quite big, this needs to be lower so Kolada doesnt complain
             var kpiBatches = kpis.Chunk(10);
 
             for (int year = 1994; year <= DateTime.Now.Year; year++)
