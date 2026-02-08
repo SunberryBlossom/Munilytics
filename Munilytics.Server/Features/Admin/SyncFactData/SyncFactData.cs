@@ -13,7 +13,7 @@ using Wolverine.Attributes;
 namespace Munilytics.Server.Features.Admin.SyncFactData
 {
     [LocalQueue("sync-kolada")]
-    public record SyncFactCommand(string[] kpis, int year);
+    public record SyncFactCommand(string[] Kpis, int Year);
     public record SyncAllFactsCommand();
     public class SyncFactData : EndpointWithoutRequest<SyncFactDataResponse>
     {
@@ -42,14 +42,14 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
         [Transactional]
         public static async Task Handle(SyncFactCommand cmd, CancellationToken ct, MunilyticsDbContext db, ILogger logger, IKoladaService koladaService)
         {
-            logger.LogInformation("Starting Fact sync for year: {Year}. Current batch: {BatchSize}", cmd.year, cmd.kpis.Length);
+            logger.LogInformation("Starting Fact sync for year: {Year}. Current batch: {BatchSize}", cmd.Year, cmd.Kpis.Length);
 
             // Get facts for current batch and current year for all municipalities
-            var newFacts = await koladaService.GetFactAsync<KoladaFactDto>(cmd.kpis, cmd.year.ToString(), ct);
+            var newFacts = await koladaService.GetFactAsync<KoladaFactDto>(cmd.Kpis, cmd.Year.ToString(), ct);
 
             if (newFacts is null || newFacts.Count == 0)
             {
-                logger.LogWarning("No facts found for in {Year}. Skipping...", cmd.year);
+                logger.LogWarning("No facts found for in {Year}. Skipping...", cmd.Year);
                 return;
             }
 
@@ -58,20 +58,20 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
                 .ToDictionaryAsync(m => m.KoladaId, m => m.Id, ct);
 
             var kpisMap = await db.Dim_KPIs
-                .Where(k => cmd.kpis.Contains(k.KpiCode))
+                .Where(k => cmd.Kpis.Contains(k.KpiCode))
                 .ToDictionaryAsync(k => k.KpiCode, k => k.Id, ct);
 
             var gendersMap = await db.Dim_Gender
                 .ToDictionaryAsync(g => g.Code, g => g.Id, ct);
 
             var dimTimeId = await db.Dim_Time
-                .Where(t => t.Year == cmd.year)
+                .Where(t => t.Year == cmd.Year)
                 .Select(t => t.Id)
                 .FirstOrDefaultAsync(ct);
 
             if (dimTimeId == 0)
             {
-                logger.LogError("Unknown year in db: {Year}. Is your database updated with the latest seed data?", cmd.year);
+                logger.LogError("Unknown year in db: {Year}. Is your database updated with the latest seed data?", cmd.Year);
                 return;
             }
 
@@ -156,7 +156,7 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
                 await db.Fact_KpiMeasurements.AddRangeAsync(newEntities);
             }
 
-            logger.LogInformation("Finished Fact sync for year: {Year} with batch size {BatchSize}", cmd.year, cmd.kpis.Length);
+            logger.LogInformation("Finished Fact sync for year: {Year} with batch size {BatchSize}", cmd.Year, cmd.Kpis.Length);
         }
     }
 
