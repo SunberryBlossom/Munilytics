@@ -51,7 +51,7 @@ public static async Task Handle(SyncFactCommand cmd, CancellationToken ct, Munil
     var newFacts = await koladaService.GetFactAsync<KoladaFactDto>(cmd.Kpis, cmd.Year.ToString(), ct);
     if (newFacts is null || newFacts.Count == 0)
     {
-        logger.LogWarning("No facts found for in {Year}. Skipping...", cmd.Year);
+        logger.LogWarning("No facts found in {Year}. Skipping...", cmd.Year);
         return;
     }
 
