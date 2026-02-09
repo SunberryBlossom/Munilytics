@@ -5,6 +5,7 @@ using JasperFx;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Http.Resilience;
 using Munilytics.Server.Domain.Entities;
 using Munilytics.Server.Infrastructure.Kolada;
 using Munilytics.Server.Infrastructure.Persistence;
@@ -36,16 +37,15 @@ builder.Host.UseWolverine(opt =>
     opt.UseEntityFrameworkCoreTransactions();
     opt.Policies.UseDurableInboxOnAllListeners();
     opt.Policies.UseDurableOutboxOnAllSendingEndpoints();
-    opt.Policies.OnException<ApplicationException>()
+    opt.Policies.OnException<Exception>()
         .RetryWithCooldown(
-        TimeSpan.FromSeconds(5),
-        TimeSpan.FromSeconds(10),
-        TimeSpan.FromSeconds(15)
+        TimeSpan.FromMinutes(1),
+        TimeSpan.FromMinutes(5),
+        TimeSpan.FromMinutes(30)
         );
     opt.Services.AddSingularAgent<KoladaSyncAgent>();
     opt.LocalQueue("sync-kolada")
-    .UseDurableInbox()
-    .Sequential();
+    .MaximumParallelMessages(5);
 });
 
 // Postgres setup with wolverine
@@ -72,14 +72,30 @@ builder.Services.SwaggerDocument(o =>
 {
     o.DocumentSettings = s =>
     {
-        s.Title = "ChasRooms API";
+        s.Title = "Munilytics API";
         s.Version = "v1";
-        s.Description = "APIs for ChasRooms";
+        s.Description = "APIs for Munilytics";
 
     };
 });
 // Registers HttpClient service with DI for our KoladaService
-builder.Services.AddHttpClient<IKoladaService, KoladaService>();
+#pragma warning disable EXTEXP0001
+builder.Services.AddHttpClient<IKoladaService, KoladaService>(client =>
+{
+    client.Timeout = Timeout.InfiniteTimeSpan;
+})
+.RemoveAllResilienceHandlers()
+.AddStandardResilienceHandler(options =>
+{
+    options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(3);
+    options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(15);
+
+    options.Retry.MaxRetryAttempts = 3;
+    options.Retry.BackoffType = Polly.DelayBackoffType.Exponential;
+    options.Retry.Delay = TimeSpan.FromSeconds(2);
+
+    options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(7);
+});
 
 var app = builder.Build();
 

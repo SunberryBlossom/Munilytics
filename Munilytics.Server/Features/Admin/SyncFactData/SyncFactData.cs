@@ -6,12 +6,15 @@ using Munilytics.Server.Features.Admin.SyncFactData.DTOs;
 using Munilytics.Server.Infrastructure.Kolada.DTOs;
 using Munilytics.Server.Infrastructure.Persistence;
 using Munilytics.Server.Interfaces;
+using System.Linq;
 using Wolverine;
 using Wolverine.Attributes;
 
 namespace Munilytics.Server.Features.Admin.SyncFactData
 {
-    public record SyncFactCommand();
+    [LocalQueue("sync-kolada")]
+    public record SyncFactCommand(string[] Kpis, int Year);
+    public record SyncAllFactsCommand();
     public class SyncFactData : EndpointWithoutRequest<SyncFactDataResponse>
     {
         private readonly IMessageBus _bus;
@@ -29,53 +32,104 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
 
         public override async Task HandleAsync(CancellationToken ct)
         {
-            try
-            {
-                var result = await _bus.InvokeAsync<SyncFactDataResponse>(new SyncFactCommand(), ct);
-                await Send.OkAsync(result, ct);
-            }
-            catch (ApplicationException ex)
-            {
-                ThrowError(ex.Message);
-            }
+            await _bus.SendAsync(new SyncAllFactsCommand());
+            await Send.AcceptedAtAsync("Syncing Fact Data in the background", cancellation: ct);
         }
     }
 
-    public static class SyncFactDataHandler
+    public static class SyncFactHandler
     {
         [Transactional]
-        public static async Task<SyncFactDataResponse> Handle (SyncFactCommand cmd, CancellationToken ct, MunilyticsDbContext db, IKoladaService koladaService)
+        public static async Task Handle(SyncFactCommand cmd, CancellationToken ct, MunilyticsDbContext db, ILogger logger, IKoladaService koladaService)
         {
-            var newFacts = await koladaService.GetFactAsync<KoladaFactDto>(ct);
+            logger.LogInformation("Starting Fact sync for year: {Year}. Current batch: {BatchSize}", cmd.Year, cmd.Kpis.Length);
+
+            // Get facts for current batch and current year for all municipalities
+            var newFacts = await koladaService.GetFactAsync<KoladaFactDto>(cmd.Kpis, cmd.Year.ToString(), ct);
 
             if (newFacts is null || newFacts.Count == 0)
             {
-                throw new ApplicationException("Could not find any facts from Kolada. Something must be wrong");
+                logger.LogWarning("No facts found for in {Year}. Skipping...", cmd.Year);
+                return;
             }
 
-            //For MVP i will only check Municipality ID. For real production we would need to compare all rows
-            var existingFacts = await db.Fact_KpiMeasurements.ToDictionaryAsync(f => f.DimMunicipalityId, f => f, ct);
-            var gendersByCode = await db.Dim_Gender.ToDictionaryAsync(g => g.Code, g => g.Id, ct);
+            // Map all inputs needed for later.
+            var municipalitiesMap = await db.Dim_Municipalities
+                .ToDictionaryAsync(m => m.KoladaId, m => m.Id, ct);
+
+            var kpisMap = await db.Dim_KPIs
+                .Where(k => cmd.Kpis.Contains(k.KpiCode))
+                .ToDictionaryAsync(k => k.KpiCode, k => k.Id, ct);
+
+            var gendersMap = await db.Dim_Gender
+                .ToDictionaryAsync(g => g.Code, g => g.Id, ct);
+
+            var dimTimeId = await db.Dim_Time
+                .Where(t => t.Year == cmd.Year)
+                .Select(t => t.Id)
+                .FirstOrDefaultAsync(ct);
+
+            if (dimTimeId == 0)
+            {
+                logger.LogError("Unknown year in db: {Year}. Is your database updated with the latest seed data?", cmd.Year);
+                return;
+            }
+
+            // Load existing facts for this year and for this kpi batch
+            var existingFacts = await db.Fact_KpiMeasurements
+                .Where(f => f.DimTimeId == dimTimeId && kpisMap.Values.Contains(f.DimKpiId))
+                .ToListAsync();
+
+            // Lookup table where we use composite key of municipality, kpiid and genderid to get a fact entity
+            var factMap = existingFacts
+                .ToDictionary(f => (MunicipalityId: f.DimMunicipalityId, KpiId: f.DimKpiId, GenderId: f.DimGenderId), f => f);
+
+            // Use a list to bulk add to dbcontext
+            var newEntities = new List<FactKpiMeasurement>();
 
             foreach (var dto in newFacts)
             {
-                if (!Enum.TryParse<GenderCode>(dto.Gender, true, out var genderCode) ||
-                    !gendersByCode.TryGetValue(genderCode, out var genderId))
+                // Skip this if this municipality or koladaid doesnt exist in our database
+                // Otherwise we give back the specific id for both.
+                // These will log, so can be a good idea to add the logged ones in the future
+                if (!municipalitiesMap.TryGetValue(dto.MunicipalityKoladaId, out var municipalityId))
                 {
-                    throw new ApplicationException($"Unknown gender code '{dto.Gender}'.");
+                    logger.LogDebug("Skipping Unknown Municipality: {MunicipalityId}", dto.MunicipalityKoladaId);
+                    continue;
                 }
 
-                if (existingFacts.TryGetValue(dto.MunicipalityId, out var existingIdentity))
+                if (!kpisMap.TryGetValue(dto.KpiKoladaId, out var kpiId))
                 {
-                    existingIdentity.Value = dto.Value;
-                    existingIdentity.Count = dto.Count;
-                    existingIdentity.LatestUpdate = DateTime.Now;
-                    existingIdentity.DimTime = new DimTime
+                    logger.LogTrace("Skipping unseeded KPI: {KpiId}", dto.KpiKoladaId);
+                    continue;
+                }
+
+                var genderString = string.IsNullOrWhiteSpace(dto.Gender) ? "T" : dto.Gender;
+
+                if (!Enum.TryParse<GenderCode>(genderString, true, out var genderCode) ||
+                    !gendersMap.TryGetValue(genderCode, out var genderId))
+                {
+                    logger.LogWarning("Unknown gender code '{Gender}'.", dto.Gender);
+                    continue;
+                }
+
+                var factKey = (MunicipalityId: municipalityId, KpiId: kpiId, GenderId: genderId);
+
+                if (factMap.TryGetValue(factKey, out var existingEntity))
+                {
+                    bool hasChanged =
+                        existingEntity.Value != (decimal)dto.Value ||
+                        existingEntity.Count != dto.Count ||
+                        existingEntity.Status != dto.Status;
+
+                    if (hasChanged)
                     {
-                        Year = dto.Year
-                    };
-                    existingIdentity.DimGenderId = genderId;
-                    existingIdentity.Status = dto.Status;
+                        existingEntity.Value = (decimal)dto.Value;
+                        existingEntity.Count = dto.Count;
+                        existingEntity.Status = dto.Status;
+
+                        existingEntity.LatestUpdate = DateTime.UtcNow;
+                    }
                 }
                 else
                 {
@@ -83,24 +137,49 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
                     {
                         Value = dto.Value,
                         Count = dto.Count,
-                        ImportDate = DateTime.Today,
-                        LatestUpdate = DateTime.Now,
-                        DimMunicipalityId = dto.MunicipalityId,
-                        DimKpiId = dto.KpiId,
-                        DimTime = new DimTime
-                        {
-                            Year = dto.Year
-                        },
-                        DimGenderId = genderId,
-                        Status = dto.Status
-                    };
+                        Status = dto.Status,
 
-                    db.Fact_KpiMeasurements.Add(newEntity);
+                        // FKs
+                        DimMunicipalityId = municipalityId,
+                        DimKpiId = kpiId,
+                        DimGenderId = genderId,
+                        DimTimeId = dimTimeId,
+
+                        ImportDate = DateTime.UtcNow,
+                        LatestUpdate = DateTime.UtcNow,
+                    };
+                    newEntities.Add(newEntity);
                 }
             }
+            if (newEntities.Count != 0)
+            {
+                await db.Fact_KpiMeasurements.AddRangeAsync(newEntities);
+            }
 
-            return new SyncFactDataResponse("Syncing of facts complete", true);
+            logger.LogInformation("Finished Fact sync for year: {Year} with batch size {BatchSize}", cmd.Year, cmd.Kpis.Length);
         }
     }
 
+    public static class SyncAllFactsHandler
+    {
+        public static async Task Handle(SyncAllFactsCommand cmd, CancellationToken ct, MunilyticsDbContext db, IMessageBus bus)
+        {
+            var kpis = await db.Dim_KPIs
+                .Select(k => k.KpiCode)
+                .ToArrayAsync(ct);
+
+            // This batches all kpis into 10 arrays of kpis.
+            // Note that Kolada has a maximum of 25 members.
+            // However since some KPIs can be quite big, this needs to be lower so Kolada doesnt complain
+            var kpiBatches = kpis.Chunk(10);
+
+            for (int year = 1994; year <= DateTime.Now.Year; year++)
+            {
+                foreach (string[] kpiBatch in kpiBatches)
+                {
+                    await bus.SendAsync(new SyncFactCommand(kpiBatch, year));
+                }
+            }
+        }
+    }
 }

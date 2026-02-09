@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Munilytics.Server.Infrastructure.Persistence;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Munilytics.Server.Migrations
 {
     [DbContext(typeof(MunilyticsDbContext))]
-    partial class MunilyticsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260206134107_MinorChanges")]
+    partial class MinorChanges
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -189,7 +192,7 @@ namespace Munilytics.Server.Migrations
                         new
                         {
                             Id = 2,
-                            Code = "K",
+                            Code = "F",
                             GenderName = "Female",
                             SortOrder = 2
                         },
@@ -645,6 +648,7 @@ namespace Munilytics.Server.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Status")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<decimal>("Value")

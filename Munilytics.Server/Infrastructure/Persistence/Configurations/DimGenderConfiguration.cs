@@ -22,7 +22,7 @@ namespace Munilytics.Server.Infrastructure.Persistence.Configurations
 
             builder.HasData(
                 new DimGender { Id = 1, Code = GenderCode.T, GenderName = "Total", SortOrder = 1 },
-                new DimGender { Id = 2, Code = GenderCode.F, GenderName = "Female", SortOrder = 2 },
+                new DimGender { Id = 2, Code = GenderCode.K, GenderName = "Female", SortOrder = 2 },
                 new DimGender { Id = 3, Code = GenderCode.M, GenderName = "Male", SortOrder = 3 }
             );
         }

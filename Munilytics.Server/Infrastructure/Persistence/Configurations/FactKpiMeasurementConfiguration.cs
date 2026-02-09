@@ -10,11 +10,11 @@ namespace Munilytics.Server.Infrastructure.Persistence.Configurations
         {
             builder.HasKey(kpm => kpm.Id);
 
-            builder.Property(fkm => fkm.Value).IsRequired();
-            builder.Property(fkm => fkm.Status).IsRequired();
-            builder.Property(fkm => fkm.Count).IsRequired();
-            builder.Property(fkm => fkm.ImportDate).IsRequired();
-            builder.Property(fkm => fkm.LatestUpdate).IsRequired();
+            builder.Property(fkm => fkm.Value);
+            builder.Property(fkm => fkm.Status);
+            builder.Property(fkm => fkm.Count);
+            builder.Property(fkm => fkm.ImportDate);
+            builder.Property(fkm => fkm.LatestUpdate);
 
             builder
                 .HasOne(fkm => fkm.DimMunicipality)

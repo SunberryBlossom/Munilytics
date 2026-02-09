@@ -2,6 +2,7 @@
 using JasperFx.Core;
 using Microsoft.EntityFrameworkCore;
 using Munilytics.Server.Domain.Entities;
+using Munilytics.Server.Features.Admin.SyncFactData;
 using Munilytics.Server.Features.Admin.SyncKpis;
 using Munilytics.Server.Features.Admin.SyncMunicipalities;
 using Munilytics.Server.Infrastructure.Persistence;
@@ -56,7 +57,8 @@ namespace Munilytics.Server.Infrastructure.Kolada
             var jobs = new Dictionary<string, object>
                 {
                     { "Sync.Kpis", new SyncKpiCommand() },
-                    { "Sync.Municipalities", new SyncMunicipalitiesCommand() }
+                    { "Sync.Municipalities", new SyncMunicipalitiesCommand() },
+                    { "Sync.Fact", new SyncAllFactsCommand() }
                 };
 
             foreach (var job in jobs)
@@ -74,7 +76,7 @@ namespace Munilytics.Server.Infrastructure.Kolada
                     // Check if there has been more than a week since last run for this job
                     if (timeSinceLastRun > TimeSpan.FromDays(7))
                     {
-                        _logger.LogInformation($"Starting sync for job: {key}");
+                        _logger.LogInformation("Starting sync for job: {JobKey}", key);
 
                         // Fire job and wait for it complete before we start another
                         await bus.InvokeAsync(command);
@@ -89,12 +91,12 @@ namespace Munilytics.Server.Infrastructure.Kolada
 
                         await db.SaveChangesAsync(cancellationToken);
 
-                        _logger.LogInformation($"Finished job {key} and updated schedule");
+                        _logger.LogInformation("Finished job {JobKey} and updated schedule", key);
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, $"Failed to run {job.Key}");
+                    _logger.LogError(ex, "Failed to run {JobKey}", job.Key);
                 }
             }
         }
