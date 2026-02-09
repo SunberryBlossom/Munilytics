@@ -72,9 +72,9 @@ builder.Services.SwaggerDocument(o =>
 {
     o.DocumentSettings = s =>
     {
-        s.Title = "ChasRooms API";
+        s.Title = "Munilytics API";
         s.Version = "v1";
-        s.Description = "APIs for ChasRooms";
+        s.Description = "APIs for Munilytics";
 
     };
 });
