@@ -38,16 +38,21 @@ var cube = builder.AddContainer("cube", "cubejs/cube")
     .WithEnvironment("CUBEJS_CACHE_AND_QUEUE_DRIVER", "memory")
     .WithEnvironment("CUBEJS_REDIS_URL", ReferenceExpression.Create($"redis://{redis.Resource.Name}:6379"))
     // Cubejs folder
-    .WithBindMount("../cube", "/cube/conf")
+    .WithBindMount("../Munilytics.Cube", "/cube/conf")
     .WaitFor(postgres)
     .WaitFor(redis);
+
+var migrationService = builder
+    .AddProject<Projects.Munilytics_MigrationService>("migrations")
+    .WithReference(postgres)
+    .WaitFor(postgres);
 
 var server = builder.AddProject<Projects.Munilytics_Server>("server")
     .WithReference(postgres)
     .WithReference(redis)
     .WithHttpHealthCheck("/health")
     .WithExternalHttpEndpoints()
-    .WaitFor(postgres);
+    .WaitFor(migrationService);
 
 var webfrontend = builder.AddViteApp("webfrontend", "../frontend")
     .WithReference(server)

@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Munilytics.Server\Munilytics.Server.csproj" />
+    <ProjectReference Include="..\Munilytics.MigrationService\Munilytics.MigrationService.csproj" />
   </ItemGroup>
 
   <ItemGroup>
