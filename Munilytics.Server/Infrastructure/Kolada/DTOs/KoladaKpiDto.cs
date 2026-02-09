@@ -2,7 +2,7 @@
 
 namespace Munilytics.Server.Models.DTOs
 {
-    public record KoladaKpiDto (
+    public record KoladaKpiDto(
         [property: JsonPropertyName("id")] string Id,
         [property: JsonPropertyName("title")] string Title,
         [property: JsonPropertyName("description")] string Description,

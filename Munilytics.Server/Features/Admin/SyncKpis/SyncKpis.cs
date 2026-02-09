@@ -16,7 +16,7 @@ namespace Munilytics.Server.Features.Admin.SyncKpis
     public class SyncKpis : EndpointWithoutRequest<SyncKpiResponse>
     {
         private readonly IMessageBus _bus;
-        public SyncKpis (IMessageBus bus)
+        public SyncKpis(IMessageBus bus)
         {
             _bus = bus;
         }
@@ -48,9 +48,9 @@ namespace Munilytics.Server.Features.Admin.SyncKpis
             }
             var existingKpis = await db.Dim_KPIs.ToDictionaryAsync(k => k.KpiCode, k => k, ct);
 
-            foreach(var dto in kpis)
+            foreach (var dto in kpis)
             {
-                if(existingKpis.TryGetValue(dto.Id, out var existingIdentity))
+                if (existingKpis.TryGetValue(dto.Id, out var existingIdentity))
                 {
                     if (existingIdentity.Title != dto.Title || existingIdentity.Description != dto.Description) // Could be made to check everything if we find it necessary.
                     {

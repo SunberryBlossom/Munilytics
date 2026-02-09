@@ -3,7 +3,7 @@
     public class DimKpi
     {
         public int Id { get; set; }
-        public string KpiCode {get; set;} = string.Empty;
+        public string KpiCode { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public bool IsDividedByGender { get; set; }
@@ -13,6 +13,6 @@
         public string Perspective { get; set; } = string.Empty;
         public string Unit { get; set; } = string.Empty;
 
-        public ICollection<FactKpiMeasurement> FactKpiMeasurements { get; set; } = new List<FactKpiMeasurement>();       
+        public ICollection<FactKpiMeasurement> FactKpiMeasurements { get; set; } = new List<FactKpiMeasurement>();
     }
 }

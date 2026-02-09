@@ -4,7 +4,7 @@ using Munilytics.Server.Domain.Entities;
 
 namespace Munilytics.Server.Infrastructure.Persistence.Configurations
 {
-    public class DimMunicipalityConfiguration :IEntityTypeConfiguration<DimMunicipality>
+    public class DimMunicipalityConfiguration : IEntityTypeConfiguration<DimMunicipality>
     {
         public void Configure(EntityTypeBuilder<DimMunicipality> builder)
         {

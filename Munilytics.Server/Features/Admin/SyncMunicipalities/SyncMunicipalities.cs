@@ -60,7 +60,7 @@ namespace Munilytics.Server.Features.Admin.SyncMunicipalities
             {
                 if (existingMunicipalities.TryGetValue(dto.Title, out var existingIdentity))
                 {
-                    if(existingIdentity.Title != dto.Title)
+                    if (existingIdentity.Title != dto.Title)
                     {
                         existingIdentity.Title = dto.Title;
                         existingIdentity.Type = dto.Type;

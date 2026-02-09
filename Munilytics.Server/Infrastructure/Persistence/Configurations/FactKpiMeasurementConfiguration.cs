@@ -21,7 +21,7 @@ namespace Munilytics.Server.Infrastructure.Persistence.Configurations
                 .WithMany(dm => dm.FactKpiMeasurements)
                 .HasForeignKey(fkm => fkm.DimMunicipalityId)
                 .OnDelete(DeleteBehavior.Restrict);
-            
+
             builder
                 .HasOne(fkm => fkm.DimKpi)
                 .WithMany(dk => dk.FactKpiMeasurements)

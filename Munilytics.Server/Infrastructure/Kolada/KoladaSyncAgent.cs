@@ -70,7 +70,7 @@ namespace Munilytics.Server.Infrastructure.Kolada
                 {
                     // Check timestamp for job
                     var settings = await db.SystemSettings.FindAsync([key], cancellationToken: cancellationToken)
-                        ?? new SystemSetting { Id = key, LastSync = DateTimeOffset.MinValue};
+                        ?? new SystemSetting { Id = key, LastSync = DateTimeOffset.MinValue };
                     var timeSinceLastRun = DateTimeOffset.UtcNow - settings.LastSync;
 
                     // Check if there has been more than a week since last run for this job
