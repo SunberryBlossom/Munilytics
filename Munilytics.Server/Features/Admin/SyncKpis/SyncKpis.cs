@@ -12,7 +12,6 @@ namespace Munilytics.Server.Features.Admin.SyncKpis
 {
     [LocalQueue("sync-kolada")]
     public record SyncKpiCommand();
-
     public class SyncKpis : EndpointWithoutRequest<SyncKpiResponse>
     {
         private readonly IMessageBus _bus;
@@ -40,20 +39,28 @@ namespace Munilytics.Server.Features.Admin.SyncKpis
         public static async Task Handle(SyncKpiCommand cmd, MunilyticsDbContext db, IKoladaService koladaService, ILogger<SyncKpis> logger, CancellationToken ct)
         {
             logger.LogInformation("Started KPI Sync");
-            var kpis = await koladaService.GetKpisAsync<KoladaKpiDto>(ct);
 
-            if (kpis == null || kpis.Count == 0)
+            // Fetches the new KPIs from Kolada, saves them as a list of DTOs. If it is empty, send a warning in the log and stop the Handle.
+            var newKpis = await koladaService.GetKpisAsync<KoladaKpiDto>(ct);
+            if (newKpis == null || newKpis.Count == 0)
             {
-                throw new ApplicationException("KoladaService returned 0 KPIs.");
+                logger.LogWarning("No KPIs found. Skipping...");
+                return;
             }
+
+            // Fetches the KPIs that already exist in our data warehouse (DWH)
             var existingKpis = await db.Dim_KPIs.ToDictionaryAsync(k => k.KpiCode, k => k, ct);
 
-            foreach (var dto in kpis)
+            var newEntities = new List<DimKpi>();
+
+            // loop through all the DTOs loaded into our list of new KPIs
+            foreach (var dto in newKpis)
             {
+                string parsedUnit = DetermineUnit(dto.Title, logger);
+
+                // If this KPI already exists in our DWH, just update it's values and EF core will automatically do the rest, otherwise create a new object and add it.
                 if (existingKpis.TryGetValue(dto.Id, out var existingIdentity))
                 {
-                    if (existingIdentity.Title != dto.Title || existingIdentity.Description != dto.Description) // Could be made to check everything if we find it necessary.
-                    {
                         existingIdentity.Title = dto.Title;
                         existingIdentity.Description = dto.Description ?? "";
                         existingIdentity.IsDividedByGender = dto.IsDividedByGender;
@@ -61,8 +68,9 @@ namespace Munilytics.Server.Features.Admin.SyncKpis
                         existingIdentity.Auspice = dto.Auspice;
                         existingIdentity.OperatingArea = dto.OperatingArea;
                         existingIdentity.Perspective = dto.Perspective;
-                    }
+                        existingIdentity.Unit = parsedUnit;
                 }
+                // If it isn't a new KPI, create it
                 else
                 {
                     var newEntity = new DimKpi
@@ -75,14 +83,41 @@ namespace Munilytics.Server.Features.Admin.SyncKpis
                         Auspice = dto.Auspice,
                         OperatingArea = dto.OperatingArea,
                         Perspective = dto.Perspective,
-                        Unit = "N/A"
+                        Unit = parsedUnit
                     };
 
-                    db.Dim_KPIs.Add(newEntity);
+                    // Add the new KPI entity into our list
+                    newEntities.Add(newEntity);
                 }
             }
+                if (newEntities.Count != 0)
+                {
+                    // Add all the new KPI entities to our DWH
+                    await db.Dim_KPIs.AddRangeAsync(newEntities, ct);
+                }
 
             logger.LogInformation("Finished background job for KPI sync");
+        }
+
+        // Helper method to try and parse out the Unit from the title
+        private static string DetermineUnit(string title, ILogger logger)
+        {
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                logger.LogWarning("Could not parse unit since title is null or whitespace. Title value: '{Title}'", title);
+                return "N/A";
+            }
+
+            var t = title.ToLowerInvariant();
+
+            if (t.Contains("(%)") || t.Contains("procent") || t.Contains("andel")) return "%";
+            if (t.Contains("(kr)") || t.Contains("kronor") || t.Contains("kostnad")) return "SEK";
+            if (t.Contains("mnkr")) return "mnkr";
+            if (t.Contains("antal") || t.Contains("styck")) return "Antal";
+            if (t.Contains("ton")) return "Ton";
+            if (t.Contains("kwh")) return "kWh";
+
+            return "N/A";
         }
     }
 }
