@@ -104,7 +104,7 @@ namespace Munilytics.Server.Features.Admin.SyncKpis
         {
             if (string.IsNullOrWhiteSpace(title))
             {
-                logger.LogWarning("Could not parse unit since title is null");
+                logger.LogWarning("Could not parse unit since title is null or whitespace. Title value: '{Title}'", title);
                 return "N/A";
             }
 
