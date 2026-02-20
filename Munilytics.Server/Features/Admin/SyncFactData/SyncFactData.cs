@@ -14,7 +14,7 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
 {
     [LocalQueue("sync-kolada")]
     public record SyncFactCommand(string[] Kpis, int Year);
-    public record SyncAllFactsCommand();
+    public record SyncAllFactsCommand(int StartYear = 1994, int? EndYear = null);
     public class SyncFactData : EndpointWithoutRequest<SyncFactDataResponse>
     {
         private readonly IMessageBus _bus;
@@ -155,9 +155,10 @@ public static async Task Handle(SyncFactCommand cmd, CancellationToken ct, Munil
             // This batches all kpis into 10 arrays of kpis.
             // Note that Kolada has a maximum of 25 members.
             // However since some KPIs can be quite big, this needs to be lower so Kolada doesnt complain
-            var kpiBatches = kpis.Chunk(10);
+            var kpiBatches = kpis.Chunk(10).ToArray();
+            var endYear = cmd.EndYear ?? DateTime.UtcNow.Year;
 
-            for (int year = 1994; year <= DateTime.Now.Year; year++)
+            for (int year = cmd.StartYear; year <= endYear; year++)
             {
                 foreach (string[] kpiBatch in kpiBatches)
                 {

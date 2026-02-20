@@ -54,17 +54,30 @@ namespace Munilytics.Server.Infrastructure.Kolada
             var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
 
             // Define all jobs here that should run weekly
-            var jobs = new Dictionary<string, object>
+            var jobs = new Dictionary<string, Func<Task<object>>>
                 {
-                    { "Sync.Kpis", new SyncKpiCommand() },
-                    { "Sync.Municipalities", new SyncMunicipalitiesCommand() },
-                    { "Sync.Fact", new SyncAllFactsCommand() }
+                    { "Sync.Kpis", () => Task.FromResult<object>(new SyncKpiCommand()) },
+                    { "Sync.Municipalities", () => Task.FromResult<object>(new SyncMunicipalitiesCommand()) },
+                    {
+                        "Sync.Fact",
+                        async () =>
+                        {
+                            var maxFactYear = (await db.Fact_KpiMeasurements
+                                .Join(db.Dim_Time, f => f.DimTimeId, t => t.Id, (_, t) => t.Year)
+                                .Select(y => (int?)y)
+                                .MaxAsync(cancellationToken)) ?? 1993;
+
+                            var currentYear = DateTime.UtcNow.Year;
+                            var startYear = Math.Clamp(maxFactYear + 1, 1994, currentYear);
+
+                            return new SyncAllFactsCommand(startYear, currentYear);
+                        }
+                    }
                 };
 
             foreach (var job in jobs)
             {
                 var key = job.Key;
-                var command = job.Value;
 
                 try
                 {
@@ -73,25 +86,64 @@ namespace Munilytics.Server.Infrastructure.Kolada
                         ?? new SystemSetting { Id = key, LastSync = DateTimeOffset.MinValue };
                     var timeSinceLastRun = DateTimeOffset.UtcNow - settings.LastSync;
 
-                    // Check if there has been more than a week since last run for this job
-                    if (timeSinceLastRun > TimeSpan.FromDays(7))
+                    var shouldRun = timeSinceLastRun > TimeSpan.FromDays(7);
+
+                    if (key == "Sync.Fact")
                     {
+                        var maxFactYear = (await db.Fact_KpiMeasurements
+                            .Join(db.Dim_Time, f => f.DimTimeId, t => t.Id, (_, t) => t.Year)
+                            .Select(y => (int?)y)
+                            .MaxAsync(cancellationToken)) ?? 1993;
+
+                        shouldRun = shouldRun || maxFactYear < DateTime.UtcNow.Year;
+                    }
+
+                    // Check if there has been more than a week since last run for this job
+                    if (shouldRun)
+                    {
+                        var command = await job.Value();
                         _logger.LogInformation("Starting sync for job: {JobKey}", key);
 
                         // Fire job and wait for it complete before we start another
                         await bus.InvokeAsync(command);
 
-                        // Update state for latest sync
-                        settings.LastSync = DateTimeOffset.UtcNow;
+                        var shouldUpdateSchedule = true;
 
-                        if (db.Entry(settings).State == EntityState.Detached)
+                        if (key == "Sync.Fact")
                         {
-                            db.Add(settings);
+                            var maxFactYearAfterRun = (await db.Fact_KpiMeasurements
+                                .Join(db.Dim_Time, f => f.DimTimeId, t => t.Id, (_, t) => t.Year)
+                                .Select(y => (int?)y)
+                                .MaxAsync(cancellationToken)) ?? 1993;
+
+                            var currentYear = DateTime.UtcNow.Year;
+                            shouldUpdateSchedule = maxFactYearAfterRun >= currentYear;
+
+                            if (!shouldUpdateSchedule)
+                            {
+                                _logger.LogInformation(
+                                    "Fact sync still catching up. Max imported year is {MaxYear}, current year is {CurrentYear}. LastSync will not be updated yet.",
+                                    maxFactYearAfterRun,
+                                    currentYear);
+                            }
                         }
 
-                        await db.SaveChangesAsync(cancellationToken);
+                        if (shouldUpdateSchedule)
+                        {
+                            settings.LastSync = DateTimeOffset.UtcNow;
 
-                        _logger.LogInformation("Finished job {JobKey} and updated schedule", key);
+                            if (db.Entry(settings).State == EntityState.Detached)
+                            {
+                                db.Add(settings);
+                            }
+
+                            await db.SaveChangesAsync(cancellationToken);
+                            _logger.LogInformation("Finished job {JobKey} and updated schedule", key);
+                        }
+                        else
+                        {
+                            _logger.LogInformation("Finished job {JobKey} without updating schedule", key);
+                        }
                     }
                 }
                 catch (Exception ex)
