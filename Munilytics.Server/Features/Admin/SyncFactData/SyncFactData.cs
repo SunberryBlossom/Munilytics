@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Munilytics.Server.Domain.Entities;
 using Munilytics.Server.Domain.Enums;
 using Munilytics.Server.Features.Admin.SyncFactData.DTOs;
+using Munilytics.Server.Infrastructure.Kolada;
 using Munilytics.Server.Infrastructure.Kolada.DTOs;
 using Munilytics.Server.Infrastructure.Persistence;
 using Munilytics.Server.Interfaces;
@@ -118,9 +119,12 @@ public static async Task Handle(SyncFactCommand cmd, CancellationToken ct, Munil
 
         // TRANSFORM
         // Otherwise, create a new fact for the database
+        var rawValue = (decimal)dto.Value;
+        var normalizedValue = KoladaSyncAgent.NormalizeDashboardValueByKpiCode(dto.KpiKoladaId, rawValue);
+
         newEntities.Add(new FactKpiMeasurement
         {
-            Value = (decimal)dto.Value,
+            Value = normalizedValue,
             Count = dto.Count,
             Status = dto.Status,
             DimMunicipalityId = municipalityId,
