@@ -45,6 +45,13 @@ public static async Task Handle(SyncFactCommand cmd, CancellationToken ct, Munil
 {
     // ------------------------- ETL FOR FACT TABLE -----------------------------
 
+    var syncState = await db.SystemSettings.FindAsync(["Sync.Fact"], cancellationToken: ct);
+    if (syncState is not null)
+    {
+        syncState.InProgress = true;
+        syncState.InProgressUpdatedAt = DateTimeOffset.UtcNow;
+    }
+
     logger.LogInformation("Starting Fact sync for year: {Year}. Current batch: {BatchSize}", cmd.Year, cmd.Kpis.Length);
 
     // EXTRACT
@@ -144,6 +151,11 @@ public static async Task Handle(SyncFactCommand cmd, CancellationToken ct, Munil
     }
 
     // Final log to tell us everything worked
+    if (syncState is not null)
+    {
+        syncState.InProgressUpdatedAt = DateTimeOffset.UtcNow;
+    }
+
     logger.LogInformation("Finished Fact sync for year: {Year}. Added {Count} records.", cmd.Year, newEntities.Count);
 }
     }

@@ -15,6 +15,10 @@ namespace Munilytics.Server.Infrastructure.Kolada
 {
     public class KoladaSyncAgent : SingularAgent
     {
+        private static readonly TimeSpan JobLockStaleAfter = TimeSpan.FromHours(6);
+        private static readonly TimeSpan FactLockStaleAfter = TimeSpan.FromHours(24);
+        private static readonly TimeSpan FactIdleWindow = TimeSpan.FromMinutes(10);
+
         public sealed record DashboardKpiMapping(
             string MetricKey,
             string Category,
@@ -62,6 +66,14 @@ namespace Munilytics.Server.Infrastructure.Kolada
         private readonly IServiceProvider _scopeFactory;
         private Timer? _timer;
 
+        private sealed record ScheduledJob(
+            string Key,
+            Func<CancellationToken, Task<object>> BuildCommand,
+            Func<MunilyticsDbContext, CancellationToken, Task<bool>> IsComplete,
+            Func<MunilyticsDbContext, CancellationToken, Task<bool>> IsActive,
+            Func<MunilyticsDbContext, CancellationToken, Task<bool>> ShouldForceRun,
+            TimeSpan LockStaleAfter);
+
         public KoladaSyncAgent(IServiceProvider scopeFactory, ILogger<KoladaSyncAgent> logger)
             : base("kolada-sync")
         {
@@ -73,8 +85,8 @@ namespace Munilytics.Server.Infrastructure.Kolada
         {
             _logger.LogInformation("Starting Sync Scheduler");
 
-            // Check every hour if sync should run
-            _timer = new Timer(async _ => await CheckState(cancellationToken), null, TimeSpan.Zero, TimeSpan.FromHours(1));
+            // Check every five minutes if sync should run or locks should be recovered
+            _timer = new Timer(async _ => await CheckState(cancellationToken), null, TimeSpan.Zero, TimeSpan.FromMinutes(5));
             return Task.CompletedTask;
         }
 
@@ -97,27 +109,40 @@ namespace Munilytics.Server.Infrastructure.Kolada
             var db = scope.ServiceProvider.GetRequiredService<MunilyticsDbContext>();
             var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
 
-            // Define all jobs here that should run weekly
-            var jobs = new Dictionary<string, Func<Task<object>>>
-                {
-                    { "Sync.Kpis", () => Task.FromResult<object>(new SyncKpiCommand()) },
-                    { "Sync.Municipalities", () => Task.FromResult<object>(new SyncMunicipalitiesCommand()) },
+            var jobs = new[]
+            {
+                new ScheduledJob(
+                    "Sync.Kpis",
+                    _ => Task.FromResult<object>(new SyncKpiCommand()),
+                    (context, ct) => Task.FromResult(true),
+                    (context, ct) => Task.FromResult(false),
+                    (context, ct) => Task.FromResult(false),
+                    JobLockStaleAfter),
+                new ScheduledJob(
+                    "Sync.Municipalities",
+                    _ => Task.FromResult<object>(new SyncMunicipalitiesCommand()),
+                    (context, ct) => Task.FromResult(true),
+                    (context, ct) => Task.FromResult(false),
+                    (context, ct) => Task.FromResult(false),
+                    JobLockStaleAfter),
+                new ScheduledJob(
+                    "Sync.Fact",
+                    async ct =>
                     {
-                        "Sync.Fact",
-                        async () =>
-                        {
-                            var maxFactYear = (await db.Fact_KpiMeasurements
-                                .Join(db.Dim_Time, f => f.DimTimeId, t => t.Id, (_, t) => t.Year)
-                                .Select(y => (int?)y)
-                                .MaxAsync(cancellationToken)) ?? 1993;
+                        var maxFactYear = (await db.Fact_KpiMeasurements
+                            .Join(db.Dim_Time, f => f.DimTimeId, t => t.Id, (_, t) => t.Year)
+                            .Select(y => (int?)y)
+                            .MaxAsync(ct)) ?? 1993;
 
-                            var currentYear = DateTime.UtcNow.Year;
-                            var startYear = Math.Clamp(maxFactYear + 1, 1994, currentYear);
-
-                            return new SyncAllFactsCommand(startYear, currentYear);
-                        }
-                    }
-                };
+                        var currentYear = DateTime.UtcNow.Year;
+                        var startYear = Math.Clamp(maxFactYear + 1, 1994, currentYear);
+                        return new SyncAllFactsCommand(startYear, currentYear);
+                    },
+                    (context, ct) => IsFactSyncComplete(context, ct),
+                        (context, ct) => IsFactSyncActive(context, ct),
+                    (context, ct) => ShouldForceRunFactSync(context, ct),
+                    FactLockStaleAfter)
+            };
 
             foreach (var job in jobs)
             {
@@ -125,67 +150,123 @@ namespace Munilytics.Server.Infrastructure.Kolada
 
                 try
                 {
-                    // Check timestamp for job
                     var settings = await db.SystemSettings.FindAsync([key], cancellationToken: cancellationToken)
-                        ?? new SystemSetting { Id = key, LastSync = DateTimeOffset.MinValue };
+                        ?? new SystemSetting { Id = key, LastSync = DateTimeOffset.UnixEpoch, InProgress = false };
+
                     var timeSinceLastRun = DateTimeOffset.UtcNow - settings.LastSync;
+                    var shouldRun = timeSinceLastRun > TimeSpan.FromDays(7) || await job.ShouldForceRun(db, cancellationToken);
 
-                    var shouldRun = timeSinceLastRun > TimeSpan.FromDays(7);
-
-                    if (key == "Sync.Fact")
+                    if (settings.InProgress)
                     {
-                        var maxFactYear = (await db.Fact_KpiMeasurements
-                            .Join(db.Dim_Time, f => f.DimTimeId, t => t.Id, (_, t) => t.Year)
-                            .Select(y => (int?)y)
-                            .MaxAsync(cancellationToken)) ?? 1993;
+                        var isComplete = await job.IsComplete(db, cancellationToken);
+                        if (isComplete)
+                        {
+                            settings.InProgress = false;
+                            settings.InProgressUpdatedAt = null;
+                            settings.LastSync = DateTimeOffset.UtcNow;
 
-                        shouldRun = shouldRun || maxFactYear < DateTime.UtcNow.Year;
+                            if (db.Entry(settings).State == EntityState.Detached)
+                            {
+                                db.Add(settings);
+                            }
+
+                            await db.SaveChangesAsync(cancellationToken);
+                            shouldRun = false;
+                            _logger.LogInformation("Marked {JobKey} as completed from in-progress state.", key);
+                        }
+                        else if (settings.InProgressUpdatedAt.HasValue)
+                        {
+                            var lockAge = DateTimeOffset.UtcNow - settings.InProgressUpdatedAt.Value;
+                            var lockIsFresh = lockAge < job.LockStaleAfter;
+                            var hasActivity = await job.IsActive(db, cancellationToken);
+
+                            if (lockIsFresh && hasActivity)
+                            {
+                                settings.InProgressUpdatedAt = DateTimeOffset.UtcNow;
+
+                                if (db.Entry(settings).State == EntityState.Detached)
+                                {
+                                    db.Add(settings);
+                                }
+
+                                await db.SaveChangesAsync(cancellationToken);
+                                shouldRun = false;
+                                _logger.LogInformation(
+                                    "Skipping {JobKey} enqueue because job is already in progress (age {LockAgeMinutes} minutes).",
+                                    key,
+                                    Math.Round(lockAge.TotalMinutes));
+                            }
+                            else if (lockIsFresh && !hasActivity)
+                            {
+                                settings.InProgress = false;
+                                settings.InProgressUpdatedAt = null;
+
+                                if (db.Entry(settings).State == EntityState.Detached)
+                                {
+                                    db.Add(settings);
+                                }
+
+                                await db.SaveChangesAsync(cancellationToken);
+                                shouldRun = true;
+                                _logger.LogWarning(
+                                    "Recovered inactive in-progress lock for {JobKey} (age {LockAgeMinutes} minutes, no activity detected).",
+                                    key,
+                                    Math.Round(lockAge.TotalMinutes));
+                            }
+                            else
+                            {
+                                settings.InProgress = false;
+                                settings.InProgressUpdatedAt = null;
+
+                                if (db.Entry(settings).State == EntityState.Detached)
+                                {
+                                    db.Add(settings);
+                                }
+
+                                await db.SaveChangesAsync(cancellationToken);
+                                _logger.LogWarning(
+                                    "Recovered stale in-progress lock for {JobKey} (age {LockAgeHours} hours).",
+                                    key,
+                                    Math.Round(lockAge.TotalHours, 1));
+                            }
+                        }
+                        else
+                        {
+                            settings.InProgress = false;
+                            settings.InProgressUpdatedAt = null;
+
+                            if (db.Entry(settings).State == EntityState.Detached)
+                            {
+                                db.Add(settings);
+                            }
+
+                            await db.SaveChangesAsync(cancellationToken);
+                            _logger.LogWarning("Recovered malformed in-progress state for {JobKey} (missing heartbeat).", key);
+                        }
                     }
 
-                    // Check if there has been more than a week since last run for this job
                     if (shouldRun)
                     {
-                        if (key == "Sync.Fact")
+                        settings.InProgress = true;
+                        settings.InProgressUpdatedAt = DateTimeOffset.UtcNow;
+
+                        if (db.Entry(settings).State == EntityState.Detached)
                         {
-                            var hasPendingFactSyncWork = await HasPendingFactSyncWork(db, cancellationToken);
-                            if (hasPendingFactSyncWork)
-                            {
-                                _logger.LogInformation(
-                                    "Skipping {JobKey} enqueue because pending fact sync envelopes already exist in Wolverine.",
-                                    key);
-                                continue;
-                            }
+                            db.Add(settings);
                         }
 
-                        var command = await job.Value();
+                        await db.SaveChangesAsync(cancellationToken);
+
+                        var command = await job.BuildCommand(cancellationToken);
                         _logger.LogInformation("Starting sync for job: {JobKey}", key);
 
-                        // Fire job and wait for it complete before we start another
                         await bus.InvokeAsync(command);
 
-                        var shouldUpdateSchedule = true;
-
-                        if (key == "Sync.Fact")
+                        var completedInline = await job.IsComplete(db, cancellationToken);
+                        if (completedInline)
                         {
-                            var maxFactYearAfterRun = (await db.Fact_KpiMeasurements
-                                .Join(db.Dim_Time, f => f.DimTimeId, t => t.Id, (_, t) => t.Year)
-                                .Select(y => (int?)y)
-                                .MaxAsync(cancellationToken)) ?? 1993;
-
-                            var currentYear = DateTime.UtcNow.Year;
-                            shouldUpdateSchedule = maxFactYearAfterRun >= currentYear;
-
-                            if (!shouldUpdateSchedule)
-                            {
-                                _logger.LogInformation(
-                                    "Fact sync still catching up. Max imported year is {MaxYear}, current year is {CurrentYear}. LastSync will not be updated yet.",
-                                    maxFactYearAfterRun,
-                                    currentYear);
-                            }
-                        }
-
-                        if (shouldUpdateSchedule)
-                        {
+                            settings.InProgress = false;
+                            settings.InProgressUpdatedAt = null;
                             settings.LastSync = DateTimeOffset.UtcNow;
 
                             if (db.Entry(settings).State == EntityState.Detached)
@@ -198,7 +279,7 @@ namespace Munilytics.Server.Infrastructure.Kolada
                         }
                         else
                         {
-                            _logger.LogInformation("Finished job {JobKey} without updating schedule", key);
+                            _logger.LogInformation("Job {JobKey} started asynchronous downstream work; keeping in-progress state.", key);
                         }
                     }
                 }
@@ -209,7 +290,50 @@ namespace Munilytics.Server.Infrastructure.Kolada
             }
         }
 
-        private static async Task<bool> HasPendingFactSyncWork(MunilyticsDbContext db, CancellationToken cancellationToken)
+        private static async Task<bool> ShouldForceRunFactSync(MunilyticsDbContext db, CancellationToken cancellationToken)
+        {
+            var maxFactYear = (await db.Fact_KpiMeasurements
+                .Join(db.Dim_Time, f => f.DimTimeId, t => t.Id, (_, t) => t.Year)
+                .Select(y => (int?)y)
+                .MaxAsync(cancellationToken)) ?? 1993;
+
+            return maxFactYear < DateTime.UtcNow.Year;
+        }
+
+        private static async Task<bool> IsFactSyncComplete(MunilyticsDbContext db, CancellationToken cancellationToken)
+        {
+            var maxFactYear = (await db.Fact_KpiMeasurements
+                .Join(db.Dim_Time, f => f.DimTimeId, t => t.Id, (_, t) => t.Year)
+                .Select(y => (int?)y)
+                .MaxAsync(cancellationToken)) ?? 1993;
+
+            if (maxFactYear < DateTime.UtcNow.Year)
+            {
+                return false;
+            }
+
+            if (await HasPendingFactSyncEnvelopes(db, cancellationToken))
+            {
+                return false;
+            }
+
+            var latestImport = await GetLatestFactImport(db, cancellationToken);
+            return latestImport.HasValue && latestImport.Value < DateTime.UtcNow - FactIdleWindow;
+        }
+
+        private static async Task<bool> IsFactSyncActive(MunilyticsDbContext db, CancellationToken cancellationToken)
+        {
+            return await HasPendingFactSyncEnvelopes(db, cancellationToken);
+        }
+
+        private static async Task<DateTime?> GetLatestFactImport(MunilyticsDbContext db, CancellationToken cancellationToken)
+        {
+            return await db.Fact_KpiMeasurements
+                .Select(f => (DateTime?)f.LatestUpdate)
+                .MaxAsync(cancellationToken);
+        }
+
+        private static async Task<bool> HasPendingFactSyncEnvelopes(MunilyticsDbContext db, CancellationToken cancellationToken)
         {
             const string sql = """
                 SELECT COUNT(*)
@@ -234,7 +358,6 @@ namespace Munilytics.Server.Infrastructure.Kolada
 
                 var result = await command.ExecuteScalarAsync(cancellationToken);
                 var count = result is null || result is DBNull ? 0 : Convert.ToInt64(result);
-
                 return count > 0;
             }
             finally
