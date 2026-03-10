@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Munilytics.Server.Domain.Entities;
 using Munilytics.Server.Domain.Enums;
 using Munilytics.Server.Features.Admin.SyncFactData.DTOs;
+using Munilytics.Server.Infrastructure.Kolada;
 using Munilytics.Server.Infrastructure.Kolada.DTOs;
 using Munilytics.Server.Infrastructure.Persistence;
 using Munilytics.Server.Interfaces;
@@ -43,6 +44,13 @@ namespace Munilytics.Server.Features.Admin.SyncFactData
 public static async Task Handle(SyncFactCommand cmd, CancellationToken ct, MunilyticsDbContext db, ILogger logger, IKoladaService koladaService)
 {
     // ------------------------- ETL FOR FACT TABLE -----------------------------
+
+    var syncState = await db.SystemSettings.FindAsync(["Sync.Fact"], cancellationToken: ct);
+    if (syncState is not null)
+    {
+        syncState.InProgress = true;
+        syncState.InProgressUpdatedAt = DateTimeOffset.UtcNow;
+    }
 
     logger.LogInformation("Starting Fact sync for year: {Year}. Current batch: {BatchSize}", cmd.Year, cmd.Kpis.Length);
 
@@ -118,9 +126,12 @@ public static async Task Handle(SyncFactCommand cmd, CancellationToken ct, Munil
 
         // TRANSFORM
         // Otherwise, create a new fact for the database
+        var rawValue = (decimal)dto.Value;
+        var normalizedValue = KoladaSyncAgent.NormalizeDashboardValueByKpiCode(dto.KpiKoladaId, rawValue);
+
         newEntities.Add(new FactKpiMeasurement
         {
-            Value = (decimal)dto.Value,
+            Value = normalizedValue,
             Count = dto.Count,
             Status = dto.Status,
             DimMunicipalityId = municipalityId,
@@ -140,6 +151,11 @@ public static async Task Handle(SyncFactCommand cmd, CancellationToken ct, Munil
     }
 
     // Final log to tell us everything worked
+    if (syncState is not null)
+    {
+        syncState.InProgressUpdatedAt = DateTimeOffset.UtcNow;
+    }
+
     logger.LogInformation("Finished Fact sync for year: {Year}. Added {Count} records.", cmd.Year, newEntities.Count);
 }
     }
