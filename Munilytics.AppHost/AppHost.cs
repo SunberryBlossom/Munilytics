@@ -5,7 +5,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 // Postgres setup
 var postgresPassword = builder.AddParameter("postgres-password", "postgres");
-var postgres = builder.AddPostgres("hydra", password: postgresPassword)
+var postgresServer = builder.AddPostgres("hydra", password: postgresPassword)
     .WithImageRegistry("ghcr.io")
     .WithImage("hydradatabase/hydra", "latest")
     .WithHostPort(port: 5433)
@@ -15,8 +15,9 @@ var postgres = builder.AddPostgres("hydra", password: postgresPassword)
         p.WithLifetime(ContainerLifetime.Persistent);
         p.WithVolume("pgadmin", "/var/lib/pgadmin");
     })
-    .WithLifetime(ContainerLifetime.Persistent)
-    .AddDatabase("MunilyticsDb");
+    .WithLifetime(ContainerLifetime.Persistent);
+
+var postgres = postgresServer.AddDatabase("MunilyticsDb");
 
 var redis = builder.AddRedis("redis")
     .WithLifetime(ContainerLifetime.Persistent);
@@ -29,7 +30,8 @@ var cube = builder.AddContainer("cube", "cubejs/cube")
     .WithEnvironment("CUBEJS_API_SECRET", "mysupersecret")
     // Postgres Integration
     .WithEnvironment("CUBEJS_DB_TYPE", "postgres")
-    .WithEnvironment("CUBEJS_DB_HOST", postgres.Resource.Name)
+    // The server resource, not the database resource — the latter is not a hostname.
+    .WithEnvironment("CUBEJS_DB_HOST", postgresServer.Resource.Name)
     .WithEnvironment("CUBEJS_DB_PORT", "5432")
     .WithEnvironment("CUBEJS_DB_NAME", "MunilyticsDb")
     .WithEnvironment("CUBEJS_DB_USER", "postgres")
@@ -39,7 +41,7 @@ var cube = builder.AddContainer("cube", "cubejs/cube")
     .WithEnvironment("CUBEJS_REDIS_URL", ReferenceExpression.Create($"redis://{redis.Resource.Name}:6379"))
     // Cubejs folder
     .WithBindMount("../Munilytics.Cube", "/cube/conf")
-    .WaitFor(postgres)
+    .WaitFor(postgresServer)
     .WaitFor(redis);
 
 var migrationService = builder
@@ -56,7 +58,10 @@ var server = builder.AddProject<Projects.Munilytics_Server>("server")
 
 var webfrontend = builder.AddViteApp("webfrontend", "../frontend")
     .WithReference(server)
-    .WaitFor(server);
+    // Vite only exposes VITE_-prefixed vars to the browser bundle.
+    .WithEnvironment("VITE_CUBE_URL", cube.GetEndpoint("http"))
+    .WaitFor(server)
+    .WaitFor(cube);
 
 server.PublishWithContainerFiles(webfrontend, "wwwroot");
 
