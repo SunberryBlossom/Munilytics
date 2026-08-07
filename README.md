@@ -1,6 +1,6 @@
 # Munilytics
 
-A data warehouse and analysis frontend for Swedish municipal KPIs, sourced from the
+A data warehouse and analysis program for Swedish municipal KPIs, sourced from the
 [Kolada](https://www.kolada.se/) open API. Municipal officials can search indicators
 and compare them across municipalities and over time.
 
