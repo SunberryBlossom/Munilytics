@@ -67,7 +67,7 @@ namespace Munilytics.Server.Features.Admin.SyncKpis
                         existingIdentity.MunicipalityType = dto.MunicipalityType;
                         existingIdentity.Auspice = dto.Auspice;
                         existingIdentity.OperatingArea = dto.OperatingArea;
-                        existingIdentity.Perspective = dto.Perspective;
+                        existingIdentity.Perspective = dto.Perspective ?? "";
                         existingIdentity.Unit = parsedUnit;
                 }
                 // If it isn't a new KPI, create it
@@ -82,7 +82,7 @@ namespace Munilytics.Server.Features.Admin.SyncKpis
                         MunicipalityType = dto.MunicipalityType,
                         Auspice = dto.Auspice,
                         OperatingArea = dto.OperatingArea,
-                        Perspective = dto.Perspective,
+                        Perspective = dto.Perspective ?? "",
                         Unit = parsedUnit
                     };
 

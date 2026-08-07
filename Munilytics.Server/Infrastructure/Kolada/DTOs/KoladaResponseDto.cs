@@ -7,6 +7,7 @@ namespace Munilytics.Server.Models.DTOs
     /// wrapped in "value" objects.
     /// </summary>
     public record KoladaResponseDto<T>(
-        [property: JsonPropertyName("values")] List<T> Values
+        [property: JsonPropertyName("values")] List<T> Values,
+        [property: JsonPropertyName("next_url")] string? NextUrl
     );
 }

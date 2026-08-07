@@ -1,0 +1,282 @@
+/* 90s corporate terminal: white paper, navy chrome, square corners, no shadows. */
+
+:root {
+  --navy: #000080;
+  --blue: #0000cc;
+  --link: #0033aa;
+  --rule: #7f7f9f;
+  --paper: #ffffff;
+  --ink: #000000;
+  --shade: #eef0f8;
+  --shade2: #dde1f0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: Verdana, Tahoma, Geneva, sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Data is monospace so digits line up in columns. */
+table,
+.mono,
+input,
+select,
+button {
+  font-family: "Courier New", Courier, monospace;
+}
+
+h1,
+h2 {
+  font-size: 12px;
+  font-weight: bold;
+  margin: 0;
+}
+
+/* ---- page frame ---- */
+
+.masthead {
+  background: var(--navy);
+  color: #ffffff;
+  padding: 4px 8px;
+  border-bottom: 2px solid var(--ink);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.masthead .title {
+  font-weight: bold;
+  letter-spacing: 2px;
+}
+
+.masthead .sub {
+  font-size: 11px;
+}
+
+.layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
+  align-items: flex-start;
+}
+
+.col-left {
+  flex: 1 1 320px;
+  min-width: 300px;
+}
+
+.col-right {
+  flex: 2 1 520px;
+  min-width: 320px;
+}
+
+/* ---- panels ---- */
+
+.panel {
+  border: 2px solid var(--navy);
+  background: var(--paper);
+  margin-bottom: 8px;
+}
+
+.panel > h2 {
+  background: var(--navy);
+  color: #ffffff;
+  padding: 2px 6px;
+  letter-spacing: 1px;
+}
+
+.panel-body {
+  padding: 6px;
+}
+
+.field {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.field > span {
+  display: block;
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+
+input[type="text"],
+select {
+  width: 100%;
+  padding: 2px 4px;
+  border: 2px inset var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 12px;
+}
+
+button {
+  border: 2px outset var(--rule);
+  background: var(--shade2);
+  color: var(--ink);
+  padding: 1px 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+button:active {
+  border-style: inset;
+}
+
+button:disabled {
+  color: #808080;
+  cursor: default;
+}
+
+/* ---- scrolling record lists ---- */
+
+.list {
+  border: 2px inset var(--rule);
+  height: 260px;
+  overflow-y: auto;
+  background: var(--paper);
+}
+
+.list .row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid var(--shade2);
+  background: var(--paper);
+  padding: 3px 5px;
+  cursor: pointer;
+  font-family: Verdana, Tahoma, sans-serif;
+  font-size: 11px;
+}
+
+.list .row:hover {
+  background: var(--shade);
+}
+
+.list .row[aria-selected="true"] {
+  background: var(--navy);
+  color: #ffffff;
+}
+
+.list .row .meta {
+  font-size: 10px;
+  color: #444466;
+}
+
+.list .row[aria-selected="true"] .meta {
+  color: #ccccee;
+}
+
+.checkrow {
+  display: flex;
+  gap: 5px;
+  align-items: baseline;
+  padding: 2px 5px;
+  border-bottom: 1px solid var(--shade2);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.checkrow:hover {
+  background: var(--shade);
+}
+
+/* ---- data table ---- */
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 11px;
+}
+
+th,
+td {
+  border: 1px solid var(--rule);
+  padding: 2px 5px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+th {
+  background: var(--shade2);
+  text-align: right;
+}
+
+th:first-child,
+td:first-child {
+  text-align: left;
+}
+
+tbody tr:nth-child(even) {
+  background: var(--shade);
+}
+
+.table-scroll {
+  max-height: 300px;
+  overflow: auto;
+  border: 2px inset var(--rule);
+}
+
+/* ---- misc ---- */
+
+.status {
+  background: var(--shade2);
+  border-top: 2px solid var(--navy);
+  padding: 3px 8px;
+  font-size: 11px;
+  font-family: "Courier New", Courier, monospace;
+}
+
+.note {
+  font-size: 11px;
+  color: #333355;
+  margin: 4px 0;
+}
+
+.chips {
+  margin: 4px 0;
+  min-height: 18px;
+}
+
+.chip {
+  display: inline-block;
+  border: 1px solid var(--navy);
+  background: var(--shade);
+  padding: 0 4px;
+  margin: 0 3px 3px 0;
+  font-size: 11px;
+}
+
+.chip button {
+  border: 0;
+  background: transparent;
+  padding: 0 0 0 4px;
+  font-weight: bold;
+  color: var(--navy);
+  cursor: pointer;
+}
+
+.toolbar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.empty {
+  padding: 20px 8px;
+  text-align: center;
+  color: #555577;
+  font-family: "Courier New", Courier, monospace;
+}
