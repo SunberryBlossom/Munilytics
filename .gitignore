@@ -416,3 +416,13 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Javascript and Cube stuff
+npm-debug.log
+yarn-error.log
+.env.local
+.ds_store
+.cubestore/
+dist/
+build/
+package-lock.json

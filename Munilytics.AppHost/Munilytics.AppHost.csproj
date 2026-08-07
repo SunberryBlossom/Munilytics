@@ -10,9 +10,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Munilytics.Server\Munilytics.Server.csproj" />
+    <ProjectReference Include="..\Munilytics.MigrationService\Munilytics.MigrationService.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.JavaScript" Version="13.1.0" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.1.0" />
+    <PackageReference Include="Aspire.Hosting.Redis" Version="13.1.0" />
   </ItemGroup>
 </Project>

@@ -4,5 +4,10 @@
     <Deploy />
   </Project>
   <Project Path="Munilytics.AppHost/Munilytics.AppHost.csproj" />
+  <Project Path="Munilytics.Cube/Munilytics.Cube.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="Munilytics.MigrationService/Munilytics.MigrationService.csproj" Id="bb19ba62-589b-4cae-94ac-93a71377e7b3" />
   <Project Path="Munilytics.Server/Munilytics.Server.csproj" />
 </Solution>

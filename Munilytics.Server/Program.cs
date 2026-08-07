@@ -1,3 +1,22 @@
+using FastEndpoints;
+using FastEndpoints.Security;
+using FastEndpoints.Swagger;
+using JasperFx;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Http.Resilience;
+using Munilytics.Server.Domain.Entities;
+using Munilytics.Server.Infrastructure.Kolada;
+using Munilytics.Server.Infrastructure.Persistence;
+using Munilytics.Server.Interfaces;
+using Wolverine;
+using Wolverine.EntityFrameworkCore;
+using Wolverine.ErrorHandling;
+using Wolverine.Postgresql;
+using Wolverine.Runtime.Agents;
+
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add service defaults & Aspire client integrations.
@@ -7,43 +26,94 @@ builder.AddServiceDefaults();
 builder.Services.AddProblemDetails();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+
+// Get connectionstring from Aspire
+var connectionString = builder.Configuration.GetConnectionString("MunilyticsDb");
+
+// Wolverine
+builder.Host.UseWolverine(opt =>
+{
+    opt.PersistMessagesWithPostgresql(connectionString!);
+    opt.UseEntityFrameworkCoreTransactions();
+    opt.Policies.UseDurableInboxOnAllListeners();
+    opt.Policies.UseDurableOutboxOnAllSendingEndpoints();
+    opt.Policies.OnException<Exception>()
+        .RetryWithCooldown(
+        TimeSpan.FromMinutes(1),
+        TimeSpan.FromMinutes(5),
+        TimeSpan.FromMinutes(30)
+        );
+    opt.Services.AddSingularAgent<KoladaSyncAgent>();
+    opt.LocalQueue("sync-kolada")
+    .MaximumParallelMessages(5);
+});
+
+// Postgres setup with wolverine
+builder.Services.AddDbContextWithWolverineIntegration<MunilyticsDbContext>(o => o.UseNpgsql(connectionString));
+
+// Auth
+builder.Services.AddIdentity<User, IdentityRole>()
+    .AddEntityFrameworkStores<MunilyticsDbContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+});
+
+builder.Services.AddAuthenticationJwtBearer(s => s.SigningKey = builder.Configuration["Jwt:Key"]!);
+
+builder.Services.AddAuthorization();
+
+// Fastendpoints
+builder.Services.AddFastEndpoints();
+builder.Services.SwaggerDocument(o =>
+{
+    o.DocumentSettings = s =>
+    {
+        s.Title = "Munilytics API";
+        s.Version = "v1";
+        s.Description = "APIs for Munilytics";
+
+    };
+});
+// Registers HttpClient service with DI for our KoladaService
+#pragma warning disable EXTEXP0001
+builder.Services.AddHttpClient<IKoladaService, KoladaService>(client =>
+{
+    client.Timeout = Timeout.InfiniteTimeSpan;
+})
+.RemoveAllResilienceHandlers()
+.AddStandardResilienceHandler(options =>
+{
+    options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(3);
+    options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(15);
+
+    options.Retry.MaxRetryAttempts = 3;
+    options.Retry.BackoffType = Polly.DelayBackoffType.Exponential;
+    options.Retry.Delay = TimeSpan.FromSeconds(2);
+
+    options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(7);
+});
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
-
-
-string[] summaries = ["Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"];
-
-var api = app.MapGroup("/api");
-api.MapGet("weatherforecast", () =>
-{
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
-
 app.MapDefaultEndpoints();
 
 app.UseFileServer();
 
-app.Run();
+app.UseAuthentication();
+app.UseAuthorization();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
+app.UseFastEndpoints();
+
+if (app.Environment.IsDevelopment())
 {
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+    app.UseSwaggerGen();
 }
+
+await app.RunJasperFxCommands(args);
